@@ -28,9 +28,13 @@ export async function POST(req: NextRequest) {
     const itemResponse = await plaidClient.itemGet({ access_token: accessToken });
     const institutionId = itemResponse.data.item.institution_id;
 
+    if (!institutionId) {
+      return NextResponse.json({ error: "Failed to get institution ID" }, { status: 400 });
+    }
+
     const institutionResponse = await plaidClient.institutionsGetById({
       institution_id: institutionId,
-      country_codes: ["US"],
+      country_codes: ["US" as any],
     });
     const institutionName = institutionResponse.data.institution.name;
 

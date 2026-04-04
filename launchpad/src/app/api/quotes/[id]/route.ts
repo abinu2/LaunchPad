@@ -8,11 +8,12 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const quote = await prisma.quote.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!quote) {
@@ -30,11 +31,12 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const quote = await prisma.quote.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!quote) {
@@ -45,7 +47,7 @@ export async function PATCH(
 
     const data = await req.json();
     const updated = await prisma.quote.update({
-      where: { id: params.id },
+      where: { id },
       data,
     });
 

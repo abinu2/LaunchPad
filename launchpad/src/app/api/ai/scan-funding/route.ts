@@ -52,7 +52,10 @@ async function scrapeFundingOpportunities(
       if (response.ok) {
         const data = await response.json();
         // Parse and structure the scraped data
-        return parseScrapedFunding(data);
+        const parsed = parseScrapedFunding(data);
+        if (parsed.length > 0) {
+          return parsed;
+        }
       }
     } catch (err) {
       console.warn("Tiny Fish scraping failed, falling back to AI generation:", err);

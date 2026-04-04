@@ -75,7 +75,7 @@ export default function QuoteDetailPage() {
             <div className="border-b border-slate-200 pb-6">
               <h2 className="font-semibold text-slate-900 mb-3">Services</h2>
               <div className="space-y-2">
-                {Array.isArray(quote.services) && quote.services.map((service: Record<string, unknown>, i: number) => (
+                {Array.isArray(quote.services) && (quote.services as any[]).map((service: any, i: number) => (
                   <div key={i} className="flex justify-between text-sm">
                     <span className="text-slate-600">{String(service.description ?? "Service")}</span>
                     <span className="font-medium text-slate-900">${Number(service.amount ?? 0).toFixed(2)}</span>

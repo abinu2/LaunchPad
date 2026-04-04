@@ -39,7 +39,7 @@ export async function searchFundingOpportunities(
   }
 ): Promise<TinyFishSearchResult[]> {
   if (!TINYFISH_API_KEY) {
-    console.warn("Tiny Fish API key not configured");
+    console.warn("Tiny Fish API key not configured - using fallback");
     return [];
   }
 

@@ -19,8 +19,8 @@ export async function POST(req: NextRequest) {
       user: { client_user_id: businessId },
       client_name: "Launchpad",
       language: "en",
-      country_codes: ["US"],
-      products: ["auth", "transactions"],
+      country_codes: ["US" as any],
+      products: ["auth", "transactions"] as any,
     });
 
     return NextResponse.json({ link_token: response.data.link_token });
