@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { upload } from "@vercel/blob/client";
 import { useDropzone } from "react-dropzone";
 import { useBusiness } from "@/context/BusinessContext";
 import { getReceipts, addReceipt } from "@/services/business-graph";
@@ -9,9 +8,9 @@ import { AILoadingScreen, LoadingScreen } from "@/components/ui/LoadingScreen";
 import { SiteNav } from "@/components/ui/SiteNav";
 import type { Receipt, ExpenseCategory } from "@/types/financial";
 import {
-  buildBusinessBlobPath,
   DOCUMENT_UPLOAD_MAX_BYTES,
 } from "@/lib/blob-upload";
+import { uploadDocumentFromBrowser } from "@/lib/upload-document";
 
 const ACCEPTED = {
   "application/pdf": [".pdf"],
@@ -82,24 +81,11 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
           })
         : undefined;
 
-      // Upload first so we always have a durable blob URL for saving and for large-file analysis.
-      const blobPath = buildBusinessBlobPath({
+      const uploadedBlob = await uploadDocumentFromBrowser({
+        file,
         businessId,
         folder: "receipts",
-        fileName: file.name,
-      });
-
-      const uploadedBlob = await upload(blobPath, file, {
-        access: "public",
-        contentType: file.type,
-        handleUploadUrl: "/api/documents/client-upload",
-        clientPayload: JSON.stringify({
-          businessId,
-          folder: "receipts",
-          originalFileName: file.name,
-        }),
-        multipart: file.size > 5 * 1024 * 1024,
-        onUploadProgress: ({ percentage }) => {
+        onProgress: (percentage) => {
           setProgress(Math.max(20, Math.min(40, 20 + Math.round(percentage * 0.2))));
         },
       });
@@ -266,7 +252,7 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
           {isDragActive ? "Drop receipt here" : "Scan a receipt"}
         </p>
         <p className="text-slate-400 text-sm">Take a photo or upload PDF/image - Max 100 MB</p>
-        <p className="text-xs text-slate-400 mt-2">Groq handles the analysis after text extraction, with OCR fallback when needed</p>
+        <p className="text-xs text-slate-400 mt-2">Receipt analysis reads extracted text first and only uses OCR when the document needs help yielding readable text</p>
       </div>
       {error && (
         <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">

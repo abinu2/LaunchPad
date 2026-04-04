@@ -142,7 +142,7 @@ const AI_STEPS = [
 interface AILoadingProps { title?: string; steps?: string[]; progress?: number; variant?: "fullscreen" | "inline"; }
 
 export function AILoadingScreen({ title = "AI is thinking...", steps = AI_STEPS, progress, variant = "inline" }: AILoadingProps) {
-  return <LoadingScreen title={title} subtitle="Powered by Groq with OCR fallback when needed" steps={steps} progress={progress} variant={variant} />;
+  return <LoadingScreen title={title} subtitle="Powered by document analysis" steps={steps} progress={progress} variant={variant} />;
 }
 
 // ─── Contract analysis scanner ────────────────────────────────────────────────

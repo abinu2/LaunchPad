@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { upload } from "@vercel/blob/client";
 import { useDropzone } from "react-dropzone";
 import { AILoadingScreen, ContractScanLoader } from "@/components/ui/LoadingScreen";
 import {
-  buildBusinessBlobPath,
   DOCUMENT_UPLOAD_MAX_BYTES,
 } from "@/lib/blob-upload";
+import { uploadDocumentFromBrowser } from "@/lib/upload-document";
 
 interface Props {
   businessId: string;
@@ -43,12 +42,6 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
       const fileType = isPdf ? "pdf" : isImage ? "image" : "pdf";
 
       try {
-        const blobPath = buildBusinessBlobPath({
-          businessId,
-          folder: "contracts",
-          fileName: file.name,
-        });
-
         if (sendBase64) {
           const fileBase64 = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
@@ -57,12 +50,11 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
             reader.readAsDataURL(file);
           });
 
-          const uploadedBlob = await upload(blobPath, file, {
-            access: "public",
-            contentType: file.type,
-            handleUploadUrl: "/api/documents/client-upload",
-            clientPayload: JSON.stringify({ businessId, folder: "contracts", originalFileName: file.name }),
-            onUploadProgress: ({ percentage }) => {
+          const uploadedBlob = await uploadDocumentFromBrowser({
+            file,
+            businessId,
+            folder: "contracts",
+            onProgress: (percentage) => {
               setProgress(Math.max(10, Math.min(35, Math.round(percentage * 0.35))));
             },
           });
@@ -92,13 +84,11 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
           setProgress(100);
           onComplete(contract.id);
         } else {
-          const uploadedBlob = await upload(blobPath, file, {
-            access: "public",
-            contentType: file.type,
-            handleUploadUrl: "/api/documents/client-upload",
-            clientPayload: JSON.stringify({ businessId, folder: "contracts", originalFileName: file.name }),
-            multipart: file.size > 5 * 1024 * 1024,
-            onUploadProgress: ({ percentage }) => {
+          const uploadedBlob = await uploadDocumentFromBrowser({
+            file,
+            businessId,
+            folder: "contracts",
+            onProgress: (percentage) => {
               setProgress(Math.max(10, Math.min(35, Math.round(percentage * 0.35))));
             },
           });
@@ -199,7 +189,7 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
           )}
 
           <p className="text-xs text-slate-400 mt-3 text-center">
-            Groq handles the contract review after text extraction, with OCR fallback only when a document needs help yielding readable text.
+            Contract analysis reads extracted text first and only uses OCR when the document needs help yielding readable text.
           </p>
         </>
       )}
