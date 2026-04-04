@@ -49,6 +49,16 @@ export default function SetupPage() {
         { label: "Create Stripe test keys if you want hosted payment links" },
       ],
     },
+    {
+      number: "5",
+      title: "Vercel Blob",
+      time: "2 min",
+      color: "bg-slate-700",
+      items: [
+        { label: "Create a Vercel Blob store for uploads" },
+        { label: "Set BLOB_READ_WRITE_TOKEN in local env and in Vercel" },
+      ],
+    },
   ];
 
   const envVars = [
@@ -64,6 +74,7 @@ export default function SetupPage() {
     { key: "STRIPE_SECRET_KEY", source: "Stripe dashboard" },
     { key: "NEXT_PUBLIC_APP_URL", source: "Usually http://localhost:3000 in local dev" },
     { key: "STRIPE_WEBHOOK_SECRET", source: "Stripe webhook settings" },
+    { key: "BLOB_READ_WRITE_TOKEN", source: "Vercel Blob store token" },
   ];
 
   return (
