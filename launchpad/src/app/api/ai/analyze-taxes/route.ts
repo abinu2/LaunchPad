@@ -65,9 +65,9 @@ export async function POST(req: NextRequest) {
       ? (biz.serviceTypes as { name?: string }[])
       : [];
 
-    const ytdRevenue = quotes.reduce((sum, quote) => sum + quote.total, 0);
+    const ytdRevenue = quotes.reduce((sum: number, quote) => sum + quote.total, 0);
     const ytdExpenses = receipts.reduce(
-      (sum, receipt) => sum + (receipt.deductibleAmount ?? receipt.amount),
+      (sum: number, receipt) => sum + (receipt.deductibleAmount ?? receipt.amount),
       0
     );
     const ytdProfit = ytdRevenue - ytdExpenses;
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       expenseByCategory[r.category] = (expenseByCategory[r.category] ?? 0) + (r.deductibleAmount ?? r.amount);
     });
 
-    const totalMiles = receipts.reduce((s, r) => s + (r.associatedMileage ?? 0), 0);
+    const totalMiles = receipts.reduce((s: number, r) => s + (r.associatedMileage ?? 0), 0);
 
     // Sample of specific receipts for Gemini to analyze
     const receiptSample = receipts.slice(0, 50).map((r) => ({
