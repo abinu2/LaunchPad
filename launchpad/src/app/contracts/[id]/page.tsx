@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { ClauseAccordion } from "@/components/contracts/ClauseAccordion";
 import { ObligationTracker } from "@/components/contracts/ObligationTracker";
 import { CounterProposalModal } from "@/components/contracts/CounterProposalModal";
+import { SiteNav } from "@/components/ui/SiteNav";
 import type { Contract, ContractObligation } from "@/types/contract";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -150,6 +151,7 @@ export default function ContractDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <SiteNav />
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
         {/* Breadcrumb */}
@@ -382,26 +384,43 @@ export default function ContractDetailPage() {
         {/* ── DOCUMENT TAB ── */}
         {tab === "document" && (
           <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <p className="font-semibold text-slate-900">Original document</p>
-              <a
-                href={contract.fileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Open in new tab →
-              </a>
-            </div>
-            {contract.fileType === "image" ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={contract.fileUrl} alt={contract.fileName} className="w-full rounded-lg border border-slate-200" />
+            {(contract.analysis as { generatedHtml?: string })?.generatedHtml ? (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="font-semibold text-slate-900">Generated contract</p>
+                  <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded">AI-generated draft</span>
+                </div>
+                <div
+                  className="prose prose-sm max-w-none border border-slate-200 rounded-lg p-6 overflow-y-auto max-h-[600px]"
+                  dangerouslySetInnerHTML={{ __html: (contract.analysis as { generatedHtml: string }).generatedHtml }}
+                />
+              </>
+            ) : contract.fileUrl ? (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="font-semibold text-slate-900">Original document</p>
+                  <a
+                    href={contract.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Open in new tab →
+                  </a>
+                </div>
+                {contract.fileType === "image" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={contract.fileUrl} alt={contract.fileName} className="w-full rounded-lg border border-slate-200" />
+                ) : (
+                  <iframe
+                    src={contract.fileUrl}
+                    className="w-full h-[600px] rounded-lg border border-slate-200"
+                    title={contract.fileName}
+                  />
+                )}
+              </>
             ) : (
-              <iframe
-                src={contract.fileUrl}
-                className="w-full h-[600px] rounded-lg border border-slate-200"
-                title={contract.fileName}
-              />
+              <p className="text-slate-400 text-sm text-center py-8">No document available</p>
             )}
           </div>
         )}

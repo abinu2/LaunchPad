@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
 import { generateJSON } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 interface FundingOpportunityRaw {
   name: string;
@@ -182,12 +183,12 @@ Return a JSON object with this exact structure:
         interestRate: op.interestRate,
         repaymentTerms: op.repaymentTerms,
         eligibilityMatch: op.eligibilityMatch,
-        eligibilityCriteria: op.eligibilityCriteria,
+        eligibilityCriteria: op.eligibilityCriteria as unknown as Prisma.InputJsonValue,
         applicationUrl: op.applicationUrl,
         applicationDeadline: op.applicationDeadline,
         status: "discovered",
         applicationProgress: 0,
-        prefilledFields: buildPrefilledFields(biz),
+        prefilledFields: buildPrefilledFields(biz) as Prisma.InputJsonValue,
         fitScore: op.fitScore,
         recommendation: op.recommendation,
         estimatedTimeToApply: op.estimatedTimeToApply,

@@ -13,7 +13,7 @@ function getCurrentMonthStats(quotes: Quote[], receipts: Receipt[]) {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
 
   const revenue = quotes
-    .filter((q) => q.status === "paid" && q.paidAt && q.paidAt.toDate?.().toISOString().slice(0, 10) >= monthStart)
+    .filter((q) => q.status === "paid" && q.paidAt && q.paidAt.slice(0, 10) >= monthStart)
     .reduce((sum, q) => sum + q.total, 0);
 
   const expenses = receipts

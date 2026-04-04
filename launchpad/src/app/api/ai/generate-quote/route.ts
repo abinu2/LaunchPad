@@ -24,6 +24,10 @@ interface PricingAnalysis {
 export async function POST(req: NextRequest) {
   try {
     const body: QuoteAnalysisRequest = await req.json();
+    if (!body.services?.length) {
+      return NextResponse.json({ error: "At least one service is required" }, { status: 400 });
+    }
+
     const totalPrice = body.services.reduce((s, svc) => s + svc.unitPrice * svc.quantity, 0);
     const totalSupplyCost = body.services.reduce((s, svc) => s + svc.supplyCost * svc.quantity, 0);
 
@@ -42,12 +46,15 @@ Return a JSON object:
 {
   "supplyCost": number,
   "estimatedLaborHours": number,
-  "estimatedLaborCost": number (assume $25/hr target labor rate),
-  "profitMargin": number (percentage after supply + labor),
+  "estimatedLaborCost": number,
+  "profitMargin": number,
   "marketComparison": "string describing how this price compares to market in this metro area",
-  "recommendation": "string — specific advice on whether to raise/lower/keep price, referencing their acceptance rate if provided",
+  "recommendation": "string with specific advice on whether to raise, lower, or keep the price",
   "suggestedPrice": number
-}`;
+}
+
+Assume a target labor rate of $25/hour for labor cost calculations.
+Return ONLY valid JSON. No markdown, no commentary.`;
 
     const result = await generateJSON<PricingAnalysis>(prompt);
     return NextResponse.json(result);

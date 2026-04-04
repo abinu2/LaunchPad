@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     const url = await uploadBlob("launchpad-files", blobName, buffer, file.type);
 
-    return NextResponse.json({ url, path: blobName, name: file.name });
+    return NextResponse.json({ url, path: blobName, name: file.name, mimeType: file.type });
   } catch (err) {
     console.error("upload error:", err);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });

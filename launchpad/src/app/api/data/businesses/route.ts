@@ -4,24 +4,35 @@ import { prisma } from "@/lib/prisma";
 import { serializeBusiness } from "@/lib/serializers";
 
 export async function GET(req: NextRequest) {
+  let sessionUser;
   try {
-    const sessionUser = await requireSessionUser();
-    const userId = req.nextUrl.searchParams.get("userId") ?? sessionUser.sub;
+    sessionUser = await requireSessionUser();
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
+  try {
+    const userId = req.nextUrl.searchParams.get("userId") ?? sessionUser.sub;
     if (userId !== sessionUser.sub) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-
     const biz = await prisma.business.findUnique({ where: { auth0Id: userId } });
     return NextResponse.json(biz ? serializeBusiness(biz) : null);
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (err) {
+    console.error("GET /api/data/businesses error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
+  let sessionUser;
   try {
-    const sessionUser = await requireSessionUser();
+    sessionUser = await requireSessionUser();
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
     const data = await req.json();
     const auth0Id = data.userId ?? sessionUser.sub;
 
@@ -99,7 +110,8 @@ export async function POST(req: NextRequest) {
       },
     });
     return NextResponse.json({ id: biz.id });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (err) {
+    console.error("POST /api/data/businesses error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

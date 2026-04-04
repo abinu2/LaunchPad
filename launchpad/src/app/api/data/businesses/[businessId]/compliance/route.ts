@@ -10,7 +10,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const { businessId } = await params;
     await requireBusinessAccess(businessId);
     const docs = await prisma.complianceItem.findMany({ where: { businessId } });
-    docs.sort((a, b) => {
+    docs.sort((a: { status: string; daysUntilDue: number | null }, b: { status: string; daysUntilDue: number | null }) => {
       if (a.status === "overdue" && b.status !== "overdue") return -1;
       if (b.status === "overdue" && a.status !== "overdue") return 1;
       return (a.daysUntilDue ?? 999) - (b.daysUntilDue ?? 999);

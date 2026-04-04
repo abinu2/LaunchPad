@@ -2,37 +2,44 @@
  * POST /api/ai/analyze-contract
  *
  * Body:
- *   fileUrl      – Firebase Storage public URL of the uploaded contract
- *   fileName     – original filename
- *   fileType     – "pdf" | "docx" | "image"
- *   businessId   – Firestore business ID
+ *   fileUrl      - Azure Blob Storage public URL of the uploaded contract
+ *   fileName     - original filename
+ *   fileType     - "pdf" | "docx" | "image"
+ *   fileMimeType - exact MIME type (for example "application/pdf" or "image/jpeg")
+ *   businessId   - Prisma business ID
  *
  * Flow:
- *   1. Fetch existing contracts for cross-contract conflict detection
- *   2. Fetch business profile for context
- *   3. Send file URL + context to Gemini (long-context model)
- *   4. Parse structured JSON response
- *   5. Persist Contract document to Firestore
- *   6. Return the saved contract with its new ID
+ *   1. Download the contract file from Azure
+ *   2. Fetch existing contracts for cross-contract conflict detection
+ *   3. Fetch business profile for context
+ *   4. Send file bytes + context to Gemini as inline data
+ *   5. Parse structured JSON response
+ *   6. Persist the contract record with Prisma
+ *   7. Return the saved contract with its new ID
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
-import { generateJSON, LONG_CONTEXT_MODEL } from "@/lib/vertex-ai";
+import { generateJSONWithFile, LONG_CONTEXT_MODEL } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
 import { serializeContract } from "@/lib/serializers";
+import type { Prisma } from "@prisma/client";
 import type { Contract, ContractAnalysis, ContractObligation } from "@/types/contract";
 
-// ─── Gemini prompt ────────────────────────────────────────────────────────────
+export const maxDuration = 120;
 
 function buildPrompt(
-  fileUrl: string,
   fileType: string,
   businessContext: string,
   existingContractSummaries: string
 ): string {
+  const fileNote =
+    fileType === "image"
+      ? "The contract is provided as an image. Read all visible text in the image carefully."
+      : "The contract is provided as a PDF document. Read and analyze all pages.";
+
   return `
 You are an expert business attorney reviewing a contract on behalf of a small business owner.
-The business owner is NOT legally sophisticated — explain everything in plain English while being legally precise.
+The business owner is NOT legally sophisticated - explain everything in plain English while being legally precise.
 
 ${businessContext}
 
@@ -40,10 +47,7 @@ EXISTING CONTRACTS IN VAULT (for conflict detection):
 ${existingContractSummaries || "None yet."}
 
 CONTRACT TO ANALYZE:
-File URL: ${fileUrl}
-File type: ${fileType}
-
-${fileType === "image" ? "This is an image of a contract. Read all visible text carefully." : ""}
+${fileNote}
 
 Analyze this contract thoroughly and return a single JSON object with EXACTLY this structure.
 Do not include any text outside the JSON.
@@ -55,7 +59,7 @@ Do not include any text outside the JSON.
   "effectiveDate": "YYYY-MM-DD or null",
   "expirationDate": "YYYY-MM-DD or null",
   "autoRenews": true|false,
-  "autoRenewalDate": "YYYY-MM-DD or null — the date auto-renewal triggers",
+  "autoRenewalDate": "YYYY-MM-DD or null - the date auto-renewal triggers",
   "autoRenewalNoticePeriod": number_or_null,
   "terminationNoticePeriod": number_or_null,
   "totalValue": number_or_null,
@@ -118,36 +122,70 @@ Do not include any text outside the JSON.
   ]
 }
 
-ANALYSIS RULES — apply all of these:
+ANALYSIS RULES - apply all of these:
 - Calculate DOLLAR IMPACT of every problematic clause against the business's actual financials
-- Flag any non-compete clause — analyze geographic/temporal scope vs. actual operating area
+- Flag any non-compete clause - analyze geographic/temporal scope vs. actual operating area
 - Flag any personal guarantee language that pierces LLC protection
-- Flag auto-renewal terms — calculate cost of missing the cancellation window
+- Flag auto-renewal terms - calculate cost of missing the cancellation window
 - Check insurance requirements in the contract vs. business's current coverage
 - Flag one-sided indemnification clauses
 - Check termination notice requirements for both parties
-- Flag unenforceable clauses under state law (e.g. overly broad non-competes)
+- Flag unenforceable clauses under state law (for example overly broad non-competes)
 - healthScore: 90-100 = clean, 70-89 = minor issues, 50-69 = significant issues, below 50 = major problems
-- counterProposalDraft: use professional legal language — the owner will send this to the counterparty
+- counterProposalDraft: use professional legal language - the owner will send this to the counterparty
 - Always include obligations for: payment terms, notice requirements, renewal/termination deadlines, insurance maintenance, reporting requirements
 `;
 }
 
-// ─── Route handler ────────────────────────────────────────────────────────────
+const SUPPORTED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
 
 export async function POST(req: NextRequest) {
   try {
-    const { fileUrl, fileName, fileType, businessId } = await req.json();
+    const { fileUrl, fileName, fileType, fileMimeType, businessId } = await req.json();
 
     if (!fileUrl || !businessId) {
       return NextResponse.json({ error: "fileUrl and businessId are required" }, { status: 400 });
     }
+
+    if (fileType === "docx") {
+      return NextResponse.json(
+        { error: "DOCX files cannot be analyzed directly. Please convert your contract to PDF and re-upload." },
+        { status: 415 }
+      );
+    }
+
+    const normalizedMimeType = fileMimeType === "image/jpg" ? "image/jpeg" : fileMimeType;
+    const mimeType =
+      normalizedMimeType ??
+      (fileType === "pdf" ? "application/pdf" : fileType === "image" ? "image/jpeg" : null);
+
+    if (!mimeType || !SUPPORTED_MIME_TYPES.has(mimeType)) {
+      return NextResponse.json(
+        { error: `Unsupported file type for Gemini analysis: ${fileMimeType ?? fileType}` },
+        { status: 415 }
+      );
+    }
+
     await requireBusinessAccess(businessId);
 
+    const fileRes = await fetch(fileUrl);
+    if (!fileRes.ok) {
+      throw new Error(`Failed to fetch contract file (${fileRes.status})`);
+    }
+
+    const fileBuffer = await fileRes.arrayBuffer();
+    const fileBase64 = Buffer.from(fileBuffer).toString("base64");
+
     const biz = await prisma.business.findUnique({ where: { id: businessId } });
-    const serviceTypes = biz && Array.isArray(biz.serviceTypes)
-      ? (biz.serviceTypes as { name?: string }[])
-      : [];
+    const serviceTypes =
+      biz && Array.isArray(biz.serviceTypes) ? (biz.serviceTypes as { name?: string }[]) : [];
 
     const businessContext = biz
       ? `BUSINESS CONTEXT:
@@ -171,9 +209,8 @@ export async function POST(req: NextRequest) {
       })
       .join("\n");
 
-    // Call Gemini with long-context model
-    const prompt = buildPrompt(fileUrl, fileType, businessContext, existingContractSummaries);
-    const ai = await generateJSON<{
+    const prompt = buildPrompt(fileType, businessContext, existingContractSummaries);
+    const ai = await generateJSONWithFile<{
       summary: string;
       contractType: Contract["contractType"];
       counterpartyName: string;
@@ -195,9 +232,8 @@ export async function POST(req: NextRequest) {
       counterProposalDraft: string | null;
       playbookDeviations: ContractAnalysis["playbookDeviations"];
       obligations: Omit<ContractObligation, "id" | "lastChecked">[];
-    }>(prompt, LONG_CONTEXT_MODEL);
+    }>(prompt, { data: fileBase64, mimeType }, LONG_CONTEXT_MODEL);
 
-    // Determine contract status
     const now = new Date();
     let status: Contract["status"] = "active";
     if (ai.expirationDate) {
@@ -207,7 +243,6 @@ export async function POST(req: NextRequest) {
       else if (daysUntilExp <= 30) status = "expiring_soon";
     }
 
-    // Build obligations with generated IDs
     const obligations: ContractObligation[] = (ai.obligations ?? []).map((o, i) => ({
       ...o,
       id: `obl_${Date.now()}_${i}`,
@@ -242,8 +277,8 @@ export async function POST(req: NextRequest) {
           estimatedAnnualCost: ai.estimatedAnnualCost,
           counterProposalDraft: ai.counterProposalDraft,
           playbookDeviations: ai.playbookDeviations,
-        },
-        obligations,
+        } as unknown as Prisma.InputJsonValue,
+        obligations: obligations as unknown as Prisma.InputJsonValue,
       },
     });
 

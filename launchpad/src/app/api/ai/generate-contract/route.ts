@@ -5,16 +5,19 @@
  * and contract type. Returns HTML that can be rendered, printed, or downloaded.
  *
  * Body:
- *   businessId    – Firestore business ID
- *   contractType  – "service_agreement" | "vendor_agreement" | "nda" | "independent_contractor"
- *   clientName    – counterparty name
- *   clientEmail   – counterparty email (optional)
- *   customFields  – Record<string, string> of any extra fields to inject
+ *   businessId    - Prisma business ID
+ *   contractType  - "service_agreement" | "vendor_agreement" | "nda" | "independent_contractor"
+ *   clientName    - counterparty name
+ *   clientEmail   - counterparty email (optional)
+ *   customFields  - Record<string, string> of any extra fields to inject
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
-import { getGeminiModel, LONG_CONTEXT_MODEL } from "@/lib/vertex-ai";
+import { generateText, LONG_CONTEXT_MODEL } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
+
+// Contract generation with a long-context model can take 30–90 seconds
+export const maxDuration = 120;
 
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
   service_agreement: "Service Agreement",
@@ -98,7 +101,7 @@ REQUIRED SECTIONS (include all):
 8. Pre-Existing Conditions / Documentation Clause (if service business)
 9. Intellectual Property (if applicable)
 10. Confidentiality
-11. Dispute Resolution (mediation → arbitration → litigation)
+11. Dispute Resolution (mediation -> arbitration -> litigation)
 12. Termination (30-day written notice)
 13. Governing Law (${biz.entityState})
 14. Severability
@@ -115,16 +118,7 @@ Format as clean HTML with:
 Return ONLY the HTML. No JSON wrapper, no markdown, no explanation.
 `;
 
-    const model = getGeminiModel(LONG_CONTEXT_MODEL);
-    const result = await model.generateContent(prompt);
-    const html =
-      result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-
-    // Strip any accidental markdown fences
-    const cleanHtml = html
-      .replace(/^```html?\n?/m, "")
-      .replace(/\n?```$/m, "")
-      .trim();
+    const cleanHtml = await generateText(prompt, LONG_CONTEXT_MODEL);
 
     return NextResponse.json({ html: cleanHtml, contractType, clientName });
   } catch (err) {

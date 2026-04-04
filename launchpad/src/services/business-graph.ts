@@ -28,7 +28,7 @@ async function api<T>(path: string, options?: RequestInit): Promise<T> {
 
 export async function createBusiness(
   userId: string,
-  data: Omit<BusinessProfile, "id" | "createdAt" | "updatedAt">
+  data: Omit<BusinessProfile, "id" | "userId" | "createdAt" | "updatedAt">
 ): Promise<string> {
   const result = await api<{ id: string }>("/api/data/businesses", {
     method: "POST",
@@ -54,7 +54,10 @@ export async function getBusinessByUserId(userId: string): Promise<BusinessProfi
 
 // ─── Contracts ───────────────────────────────────────────────────────────────
 
-export async function addContract(businessId: string, contract: Omit<Contract, "id">): Promise<string> {
+export async function addContract(
+  businessId: string,
+  contract: Omit<Contract, "id" | "uploadedAt">
+): Promise<string> {
   const result = await api<{ id: string }>(`/api/data/businesses/${businessId}/contracts`, {
     method: "POST",
     body: JSON.stringify(contract),
@@ -87,7 +90,10 @@ export async function deleteContract(businessId: string, contractId: string): Pr
 
 // ─── Receipts ────────────────────────────────────────────────────────────────
 
-export async function addReceipt(businessId: string, receipt: Omit<Receipt, "id">): Promise<string> {
+export async function addReceipt(
+  businessId: string,
+  receipt: Omit<Receipt, "id" | "uploadedAt">
+): Promise<string> {
   const result = await api<{ id: string }>(`/api/data/businesses/${businessId}/receipts`, {
     method: "POST",
     body: JSON.stringify(receipt),
@@ -109,7 +115,10 @@ export async function getReceipts(
 
 // ─── Compliance ───────────────────────────────────────────────────────────────
 
-export async function addComplianceItem(businessId: string, item: Omit<ComplianceItem, "id">): Promise<string> {
+export async function addComplianceItem(
+  businessId: string,
+  item: Omit<ComplianceItem, "id">
+): Promise<string> {
   const result = await api<{ id: string }>(`/api/data/businesses/${businessId}/compliance`, {
     method: "POST",
     body: JSON.stringify(item),
@@ -130,7 +139,10 @@ export async function updateComplianceItem(businessId: string, itemId: string, d
 
 // ─── Quotes ──────────────────────────────────────────────────────────────────
 
-export async function addQuote(businessId: string, quote: Omit<Quote, "id">): Promise<string> {
+export async function addQuote(
+  businessId: string,
+  quote: Omit<Quote, "id" | "createdAt" | "updatedAt">
+): Promise<string> {
   const result = await api<{ id: string }>(`/api/data/businesses/${businessId}/quotes`, {
     method: "POST",
     body: JSON.stringify(quote),
@@ -152,7 +164,10 @@ export async function updateQuote(businessId: string, quoteId: string, data: Par
 
 // ─── Funding ─────────────────────────────────────────────────────────────────
 
-export async function addFundingOpportunity(businessId: string, opportunity: Omit<FundingOpportunity, "id">): Promise<string> {
+export async function addFundingOpportunity(
+  businessId: string,
+  opportunity: Omit<FundingOpportunity, "id" | "discoveredAt">
+): Promise<string> {
   const result = await api<{ id: string }>(`/api/data/businesses/${businessId}/funding`, {
     method: "POST",
     body: JSON.stringify(opportunity),

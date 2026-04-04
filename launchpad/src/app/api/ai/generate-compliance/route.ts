@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
 import { generateJSON } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 interface ComplianceItemRaw {
   title: string;
@@ -128,7 +129,7 @@ Return ONLY the JSON array. No explanation, no markdown.`;
         applicationUrl: item.applicationUrl,
         cost: item.cost,
         estimatedProcessingTime: item.estimatedProcessingTime,
-        documentationRequired: item.documentationRequired,
+        documentationRequired: item.documentationRequired as unknown as Prisma.InputJsonValue,
         penaltyForNonCompliance: item.penaltyForNonCompliance,
         reminderSent30Days: false,
         reminderSent14Days: false,

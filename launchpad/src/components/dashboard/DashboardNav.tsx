@@ -38,6 +38,7 @@ export function DashboardNav({ business }: Props) {
         {/* Nav links — desktop */}
         <nav className="hidden md:flex items-center gap-1">
           {[
+            { href: "/dashboard", label: "Home" },
             { href: "/dashboard/protection", label: "Protection" },
             { href: "/dashboard/compliance", label: "Compliance" },
             { href: "/dashboard/finances", label: "Finances" },

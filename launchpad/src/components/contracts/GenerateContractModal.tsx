@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -19,11 +20,13 @@ const CONTRACT_TYPES: { value: ContractType; label: string; description: string 
 ];
 
 export function GenerateContractModal({ businessId, onClose }: Props) {
+  const router = useRouter();
   const [contractType, setContractType] = useState<ContractType>("service_agreement");
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [customFields, setCustomFields] = useState("");
   const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [html, setHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,6 +86,42 @@ export function GenerateContractModal({ businessId, onClose }: Props) {
     a.download = `${contractType}-${clientName.replace(/\s+/g, "-").toLowerCase()}.html`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleSaveToVault = async () => {
+    if (!html) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/data/businesses/${businessId}/contracts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: `${contractType}-${clientName.replace(/\s+/g, "-").toLowerCase()}.html`,
+          fileUrl: "",
+          fileType: "generated",
+          contractType,
+          counterpartyName: clientName.trim(),
+          autoRenews: false,
+          healthScore: 100,
+          status: "draft",
+          analysis: { summary: `Generated ${CONTRACT_TYPES.find((t) => t.value === contractType)?.label ?? contractType} for ${clientName}` },
+          obligations: [],
+          generatedHtml: html,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Failed to save contract");
+      }
+      const { id } = await res.json();
+      onClose();
+      router.push(`/contracts/${id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save to vault");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -219,10 +258,16 @@ export function GenerateContractModal({ businessId, onClose }: Props) {
                 </button>
                 <button
                   onClick={handlePrint}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
                 >
-                  Print / Save PDF
+                  Print / PDF
                 </button>
+                <Button
+                  onClick={handleSaveToVault}
+                  loading={saving}
+                >
+                  Save to Vault
+                </Button>
               </div>
             </>
           )}

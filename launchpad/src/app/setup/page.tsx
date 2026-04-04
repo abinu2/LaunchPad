@@ -4,81 +4,71 @@ export default function SetupPage() {
   const steps = [
     {
       number: "1",
-      title: "Firebase project",
+      title: "Auth0",
       time: "5 min",
       color: "bg-orange-500",
       items: [
-        { label: "Go to", link: "https://console.firebase.google.com", linkText: "console.firebase.google.com" },
-        { label: "Create a new project (or use existing)" },
-        { label: "Authentication → Sign-in method → enable Email/Password + Google" },
-        { label: "Firestore Database → Create database → Start in test mode" },
-        { label: "Storage → Get started → Start in test mode" },
-        { label: "Project Settings → Your apps → Add web app → copy config into NEXT_PUBLIC_FIREBASE_* vars" },
-        { label: "Project Settings → Service accounts → Generate new private key → copy project_id, client_email, private_key into FIREBASE_ADMIN_* vars" },
+        { label: "Go to", link: "https://manage.auth0.com", linkText: "manage.auth0.com" },
+        { label: "Create an application or use an existing Regular Web App" },
+        { label: "Set Allowed Callback URLs to http://localhost:3000/auth/callback" },
+        { label: "Set Allowed Logout URLs to http://localhost:3000" },
+        { label: "Copy Domain, Client ID, Client Secret, and generate an AUTH0_SECRET" },
       ],
     },
     {
       number: "2",
-      title: "Google Cloud / Vertex AI",
+      title: "Postgres + Prisma",
       time: "5 min",
       color: "bg-blue-500",
       items: [
-        { label: "Go to", link: "https://console.cloud.google.com", linkText: "console.cloud.google.com" },
-        { label: "Select the same project as Firebase" },
-        { label: "APIs & Services → Enable APIs → search 'Vertex AI API' → Enable" },
-        { label: "IAM & Admin → Service Accounts → create or use existing → Keys → Add Key → JSON → download" },
-        { label: "Save the JSON file as service-account.json in the launchpad/ folder" },
-        { label: "Set GOOGLE_CLOUD_PROJECT_ID to your project ID" },
-        { label: "Set GOOGLE_APPLICATION_CREDENTIALS=./service-account.json" },
+        { label: "Create or use a PostgreSQL database" },
+        { label: "Set DATABASE_URL to your Postgres connection string" },
+        { label: "Run pnpm prisma generate" },
+        { label: "Run pnpm prisma db push (or migrations) to apply the schema" },
       ],
     },
     {
       number: "3",
-      title: "Plaid sandbox (free)",
+      title: "Gemini API",
       time: "2 min",
       color: "bg-green-500",
       items: [
-        { label: "Go to", link: "https://dashboard.plaid.com", linkText: "dashboard.plaid.com" },
-        { label: "Sign up for a free account" },
-        { label: "Team Settings → Keys → copy Client ID and Sandbox Secret" },
-        { label: "Set PLAID_ENV=sandbox (already set)" },
-        { label: "In the app, use username: user_good / password: pass_good to connect a test bank" },
+        { label: "Go to", link: "https://aistudio.google.com/apikey", linkText: "aistudio.google.com/apikey" },
+        { label: "Create a Gemini API key in Google AI Studio" },
+        { label: "Set GEMINI_API_KEY in launchpad/.env.local" },
+        { label: "Optional: override GEMINI_MODEL or GEMINI_LONG_CONTEXT_MODEL if you want different defaults" },
       ],
     },
     {
       number: "4",
-      title: "Stripe (optional)",
-      time: "2 min",
+      title: "Plaid / Stripe",
+      time: "3 min",
       color: "bg-purple-500",
       items: [
-        { label: "Go to", link: "https://dashboard.stripe.com", linkText: "dashboard.stripe.com" },
-        { label: "Developers → API keys → copy test keys" },
-        { label: "App works without Stripe — only needed for payment links" },
+        { label: "Create a Plaid sandbox app and copy PLAID_CLIENT_ID / PLAID_SECRET" },
+        { label: "Create Stripe test keys if you want hosted payment links" },
       ],
     },
   ];
 
   const envVars = [
-    { key: "NEXT_PUBLIC_FIREBASE_API_KEY", source: "Firebase → Project Settings → Web app config" },
-    { key: "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN", source: "Firebase → Project Settings → Web app config" },
-    { key: "NEXT_PUBLIC_FIREBASE_PROJECT_ID", source: "Firebase → Project Settings → Web app config" },
-    { key: "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET", source: "Firebase → Project Settings → Web app config" },
-    { key: "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID", source: "Firebase → Project Settings → Web app config" },
-    { key: "NEXT_PUBLIC_FIREBASE_APP_ID", source: "Firebase → Project Settings → Web app config" },
-    { key: "FIREBASE_ADMIN_PROJECT_ID", source: "Firebase → Service accounts → JSON → project_id" },
-    { key: "FIREBASE_ADMIN_CLIENT_EMAIL", source: "Firebase → Service accounts → JSON → client_email" },
-    { key: "FIREBASE_ADMIN_PRIVATE_KEY", source: "Firebase → Service accounts → JSON → private_key" },
-    { key: "GOOGLE_CLOUD_PROJECT_ID", source: "Google Cloud → project ID (same as Firebase)" },
-    { key: "GOOGLE_APPLICATION_CREDENTIALS", source: "Path to service-account.json (e.g. ./service-account.json)" },
-    { key: "PLAID_CLIENT_ID", source: "Plaid Dashboard → Team Settings → Keys" },
-    { key: "PLAID_SECRET", source: "Plaid Dashboard → Team Settings → Sandbox secret" },
+    { key: "AUTH0_DOMAIN", source: "Auth0 application settings" },
+    { key: "AUTH0_CLIENT_ID", source: "Auth0 application settings" },
+    { key: "AUTH0_CLIENT_SECRET", source: "Auth0 application settings" },
+    { key: "AUTH0_SECRET", source: "Generate a long random hex string" },
+    { key: "AUTH0_BASE_URL", source: "Usually http://localhost:3000 in local dev" },
+    { key: "DATABASE_URL", source: "PostgreSQL connection string for Prisma" },
+    { key: "GEMINI_API_KEY", source: "Google AI Studio API key" },
+    { key: "PLAID_CLIENT_ID", source: "Plaid dashboard" },
+    { key: "PLAID_SECRET", source: "Plaid dashboard" },
+    { key: "STRIPE_SECRET_KEY", source: "Stripe dashboard" },
+    { key: "NEXT_PUBLIC_APP_URL", source: "Usually http://localhost:3000 in local dev" },
+    { key: "STRIPE_WEBHOOK_SECRET", source: "Stripe webhook settings" },
   ];
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4">
       <div className="max-w-3xl mx-auto space-y-8">
-
-        {/* Header */}
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-2xl mb-4">
             <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -86,16 +76,14 @@ export default function SetupPage() {
             </svg>
           </div>
           <h1 className="text-3xl font-bold text-slate-900">Launchpad Setup</h1>
-          <p className="text-slate-500 mt-2">Fill in your .env.local file to launch the app. Takes about 12 minutes total.</p>
+          <p className="text-slate-500 mt-2">Fill in `launchpad/.env.local` for the Prisma + Auth0 stack.</p>
         </div>
 
-        {/* .env.local location */}
         <div className="bg-slate-900 rounded-xl p-4">
           <p className="text-xs text-slate-400 mb-2">Edit this file:</p>
           <p className="text-green-400 font-mono text-sm">launchpad/.env.local</p>
         </div>
 
-        {/* Steps */}
         {steps.map((step) => (
           <div key={step.number} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <div className={`${step.color} px-5 py-3 flex items-center justify-between`}>
@@ -110,12 +98,11 @@ export default function SetupPage() {
             <ul className="divide-y divide-slate-100">
               {step.items.map((item, i) => (
                 <li key={i} className="flex items-start gap-3 px-5 py-3 text-sm text-slate-700">
-                  <span className="text-slate-300 flex-shrink-0 mt-0.5">→</span>
+                  <span className="text-slate-300 flex-shrink-0 mt-0.5">-&gt;</span>
                   <span>
                     {item.label}{" "}
                     {item.link && (
-                      <a href={item.link} target="_blank" rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline font-medium">
+                      <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
                         {item.linkText}
                       </a>
                     )}
@@ -126,10 +113,9 @@ export default function SetupPage() {
           </div>
         ))}
 
-        {/* Env var reference */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-200">
-            <h2 className="font-semibold text-slate-900">All required env vars</h2>
+            <h2 className="font-semibold text-slate-900">Required env vars</h2>
           </div>
           <div className="divide-y divide-slate-100">
             {envVars.map((v) => (
@@ -141,24 +127,13 @@ export default function SetupPage() {
           </div>
         </div>
 
-        {/* FIREBASE_ADMIN_PRIVATE_KEY note */}
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <p className="text-sm font-semibold text-amber-800 mb-1">FIREBASE_ADMIN_PRIVATE_KEY format</p>
-          <p className="text-xs text-amber-700 mb-2">
-            The private key from the JSON file contains literal newlines. In .env.local, wrap it in double quotes and replace newlines with \n:
-          </p>
-          <pre className="text-xs bg-amber-100 rounded-lg p-3 text-amber-900 overflow-x-auto whitespace-pre-wrap">
-{`FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\nMIIEvAIBADANBgkq...\\n-----END PRIVATE KEY-----\\n"`}
-          </pre>
-        </div>
-
-        {/* Launch command */}
         <div className="bg-slate-900 rounded-xl p-5">
-          <p className="text-slate-400 text-xs mb-3">Once .env.local is filled in, run:</p>
-          <pre className="text-green-400 font-mono text-sm">npm run dev</pre>
+          <p className="text-slate-400 text-xs mb-3">Once `.env.local` is filled in, run:</p>
+          <pre className="text-green-400 font-mono text-sm">{`pnpm prisma generate
+pnpm prisma db push
+pnpm dev`}</pre>
           <p className="text-slate-500 text-xs mt-3">App will be at http://localhost:3000</p>
         </div>
-
       </div>
     </div>
   );

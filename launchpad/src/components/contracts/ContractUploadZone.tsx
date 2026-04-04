@@ -12,9 +12,10 @@ interface Props {
 
 type Stage = "idle" | "uploading" | "analyzing" | "error";
 
+// DOCX is excluded — Gemini's inline data API does not support it.
+// Users should convert DOCX to PDF before uploading.
 const ACCEPTED = {
   "application/pdf": [".pdf"],
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
   "image/jpeg": [".jpg", ".jpeg"],
   "image/png": [".png"],
   "image/webp": [".webp"],
@@ -39,7 +40,7 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
       setProgress(10);
 
       try {
-        // Step 1: Upload to Firebase Storage
+        // Step 1: Upload the file to document storage
         const formData = new FormData();
         formData.append("file", file);
         formData.append("businessId", businessId);
@@ -55,7 +56,7 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
           throw new Error(err.error ?? "Upload failed");
         }
 
-        const { url, name } = await uploadRes.json();
+        const { url, name, mimeType: fileMimeType } = await uploadRes.json();
         setProgress(40);
         setStage("analyzing");
 
@@ -69,7 +70,13 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
         const analyzeRes = await fetch("/api/ai/analyze-contract", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileUrl: url, fileName: name, fileType, businessId }),
+          body: JSON.stringify({
+            fileUrl: url,
+            fileName: name,
+            fileType,
+            fileMimeType: fileMimeType ?? file.type,
+            businessId,
+          }),
         });
 
         if (!analyzeRes.ok) {
@@ -146,7 +153,7 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
             <p className="text-slate-700 font-medium mb-1">
               {isDragActive ? "Drop it here" : "Drag & drop or click to upload"}
             </p>
-            <p className="text-slate-400 text-sm">PDF, DOCX, or image · Max 20 MB</p>
+            <p className="text-slate-400 text-sm">PDF or image (JPG, PNG, WEBP) · Max 20 MB</p>
           </div>
 
           {error && (

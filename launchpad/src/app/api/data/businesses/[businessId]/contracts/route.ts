@@ -39,7 +39,9 @@ export async function POST(req: NextRequest, { params }: Params) {
         monthlyValue: data.monthlyValue ?? null,
         healthScore: data.healthScore ?? 100,
         status: data.status ?? "active",
-        analysis: data.analysis ?? {},
+        analysis: data.generatedHtml
+          ? { ...(data.analysis ?? {}), generatedHtml: data.generatedHtml }
+          : (data.analysis ?? {}),
         obligations: data.obligations ?? [],
       },
     });

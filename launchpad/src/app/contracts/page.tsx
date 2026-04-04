@@ -9,6 +9,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { Badge } from "@/components/ui/Badge";
 import { ContractUploadZone } from "@/components/contracts/ContractUploadZone";
 import { GenerateContractModal } from "@/components/contracts/GenerateContractModal";
+import { SiteNav } from "@/components/ui/SiteNav";
 import type { Contract } from "@/types/contract";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -131,6 +132,7 @@ export default function ContractsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <SiteNav />
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
         {/* Header */}

@@ -12,8 +12,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const business = await prisma.business.findUnique({ where: { id: businessId } });
     if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
+    const services = Array.isArray(quote.services)
+      ? (quote.services as { serviceName: string; total: number; quantity: number }[])
+      : [];
 
-    const lineItems = quote.services.map((s: { serviceName: string; total: number; quantity: number }) => ({
+    const lineItems = services.map((s) => ({
       price_data: {
         currency: "usd",
         product_data: { name: s.serviceName },

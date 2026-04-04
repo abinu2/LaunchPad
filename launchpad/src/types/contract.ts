@@ -20,7 +20,7 @@ export interface Contract {
   uploadedAt: string;
   fileName: string;
   fileUrl: string;
-  fileType: "pdf" | "docx" | "image";
+  fileType: "pdf" | "docx" | "image" | "generated";
   contractType:
     | "service_agreement"
     | "vendor_agreement"
@@ -54,6 +54,8 @@ export interface ContractAnalysis {
   estimatedAnnualCost: number | null;
   counterProposalDraft: string | null;
   playbookDeviations: PlaybookDeviation[];
+  /** HTML content for AI-generated contracts saved to the vault */
+  generatedHtml?: string;
 }
 
 export interface ClauseAnalysis {

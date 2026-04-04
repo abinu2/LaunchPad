@@ -21,6 +21,11 @@ export function serializeBusiness(business: Business) {
     createdAt: business.createdAt.toISOString(),
     updatedAt: business.updatedAt.toISOString(),
     userId: business.auth0Id,
+    // Cast JSON fields
+    businessAddress: business.businessAddress as import("@/types/business").BusinessProfile["businessAddress"],
+    operatingJurisdictions: (business.operatingJurisdictions ?? []) as string[],
+    serviceTypes: (business.serviceTypes ?? []) as import("@/types/business").ServiceType[],
+    completedSteps: (business.completedSteps ?? []) as string[],
     financials: {
       monthlyRevenueAvg: business.monthlyRevenueAvg,
       monthlyExpenseAvg: business.monthlyExpenseAvg,
@@ -39,6 +44,8 @@ export function serializeContract(contract: Contract) {
     createdAt: contract.createdAt.toISOString(),
     updatedAt: contract.updatedAt.toISOString(),
     uploadedAt: contract.createdAt.toISOString(),
+    analysis: (contract.analysis ?? {}) as import("@/types/contract").ContractAnalysis,
+    obligations: (contract.obligations ?? []) as import("@/types/contract").ContractObligation[],
   };
 }
 
@@ -62,6 +69,8 @@ export function serializeQuote(quote: Quote) {
     contractSignedAt: toIso(quote.contractSignedAt),
     lastFollowUpAt: toIso(quote.lastFollowUpAt),
     nextFollowUpAt: toIso(quote.nextFollowUpAt),
+    // Cast JSON fields to their typed equivalents
+    services: (quote.services ?? []) as import("@/types/quote").QuoteLineItem[],
   };
 }
 
@@ -71,6 +80,7 @@ export function serializeComplianceItem(item: ComplianceItem) {
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
     lastCheckedAt: item.lastCheckedAt.toISOString(),
+    documentationRequired: (item.documentationRequired ?? []) as string[],
   };
 }
 
@@ -80,6 +90,8 @@ export function serializeFundingOpportunity(item: FundingOpportunity) {
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
     discoveredAt: item.createdAt.toISOString(),
+    eligibilityCriteria: (item.eligibilityCriteria ?? []) as import("@/types/compliance").FundingOpportunity["eligibilityCriteria"],
+    prefilledFields: (item.prefilledFields ?? {}) as Record<string, string>,
     amount: {
       min: item.amountMin,
       max: item.amountMax,

@@ -5,6 +5,7 @@ import { useBusiness } from "@/context/BusinessContext";
 import { getQuotes, updateQuote } from "@/services/business-graph";
 import { Spinner } from "@/components/ui/Spinner";
 import { QuoteCreateModal } from "@/components/quotes/QuoteCreateModal";
+import { SiteNav } from "@/components/ui/SiteNav";
 import type { Quote } from "@/types/quote";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -49,10 +50,17 @@ export default function QuotesPage() {
     revenue: quotes.filter((q) => q.status === "paid").reduce((s, q) => s + q.total, 0),
   };
 
-  if (loading) return <div className="flex justify-center py-16"><Spinner /></div>;
+  if (loading) return (
+    <div className="min-h-screen bg-slate-50">
+      <SiteNav />
+      <div className="flex justify-center py-16"><Spinner /></div>
+    </div>
+  );
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+    <div className="min-h-screen bg-slate-50">
+      <SiteNav />
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -119,7 +127,7 @@ export default function QuotesPage() {
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-slate-900 truncate">{quote.clientName}</p>
                 <p className="text-xs text-slate-500 truncate">
-                  {quote.services.map((s) => s.serviceName).join(", ")}
+                  {(quote.services ?? []).map((s) => s.serviceName).join(", ")}
                 </p>
                 {quote.scheduledDate && (
                   <p className="text-xs text-slate-400">{quote.scheduledDate}</p>
@@ -169,6 +177,7 @@ export default function QuotesPage() {
           onCreated={() => { setShowCreate(false); load(); }}
         />
       )}
+      </div>
     </div>
   );
 }
