@@ -54,6 +54,7 @@ export function serializeReceipt(receipt: Receipt) {
     ...receipt,
     createdAt: receipt.createdAt.toISOString(),
     uploadedAt: receipt.createdAt.toISOString(),
+    lineItems: (receipt.lineItems ?? []) as unknown as import("@/types/financial").LineItem[],
   };
 }
 
