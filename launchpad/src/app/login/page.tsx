@@ -18,7 +18,7 @@ export default function LoginPage() {
   // Redirect to Auth0 Universal Login
   useEffect(() => {
     if (!loading && !user) {
-      window.location.href = "/api/auth/login";
+      window.location.href = "/auth/login";
     }
   }, [user, loading]);
 

@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       user,
       loading: isLoading,
-      signOut: () => { window.location.href = "/api/auth/logout"; },
+      signOut: () => { window.location.href = "/auth/logout"; },
     }}>
       {children}
     </AuthContext.Provider>
