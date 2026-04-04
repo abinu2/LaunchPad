@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { usePlaidLink } from "react-plaid-link";
-import { useAuth } from "@/context/AuthContext";
 
 interface Props {
   businessId: string;
@@ -12,22 +11,21 @@ interface Props {
 }
 
 export function PlaidConnectButton({ businessId, onSuccess, className, children }: Props) {
-  const { user } = useAuth();
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchLinkToken = async () => {
-    if (!user) return;
     setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/plaid/create-link-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId }),
       });
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      if (!res.ok || data.error) throw new Error(data.error ?? "Failed to create link token");
       setLinkToken(data.link_token);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to connect bank");
@@ -36,8 +34,12 @@ export function PlaidConnectButton({ businessId, onSuccess, className, children 
   };
 
   const handleSuccess = useCallback(
-    async (publicToken: string, metadata: { institution?: { institution_id: string; name: string } | null }) => {
+    async (
+      publicToken: string,
+      metadata: { institution?: { institution_id: string; name: string } | null }
+    ) => {
       setLoading(true);
+      setError(null);
       try {
         const res = await fetch("/api/plaid/exchange-token", {
           method: "POST",
@@ -50,7 +52,7 @@ export function PlaidConnectButton({ businessId, onSuccess, className, children 
           }),
         });
         const data = await res.json();
-        if (data.error) throw new Error(data.error);
+        if (!res.ok || data.error) throw new Error(data.error ?? "Failed to connect bank");
         onSuccess();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to connect bank");
@@ -65,20 +67,28 @@ export function PlaidConnectButton({ businessId, onSuccess, className, children 
   const { open, ready } = usePlaidLink({
     token: linkToken ?? "",
     onSuccess: handleSuccess,
-    onExit: () => { setLinkToken(null); setLoading(false); },
+    onExit: () => {
+      setLinkToken(null);
+      setLoading(false);
+    },
   });
 
-  // Auto-open Link once we have a token
-  if (linkToken && ready) {
-    open();
-  }
+  // Auto-open Link once we have a token and Plaid is ready
+  useEffect(() => {
+    if (linkToken && ready) {
+      open();
+    }
+  }, [linkToken, ready, open]);
 
   return (
     <div>
       <button
         onClick={fetchLinkToken}
         disabled={loading}
-        className={className ?? "flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"}
+        className={
+          className ??
+          "flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+        }
       >
         {loading ? (
           <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">

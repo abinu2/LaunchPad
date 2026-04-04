@@ -240,7 +240,11 @@ export function OnboardingResults({ result, onSave }: Props) {
                 <div className="mt-3 flex items-center gap-3">
                   <PlaidConnectButton
                     businessId={savedBusinessId}
-                    onSuccess={() => setBankConnected(true)}
+                    onSuccess={() => {
+                      setBankConnected(true);
+                      // Navigate to dashboard after a short delay so the success state shows
+                      setTimeout(() => router.replace("/dashboard"), 1200);
+                    }}
                     className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
                   >
                     Link bank account
@@ -253,10 +257,11 @@ export function OnboardingResults({ result, onSave }: Props) {
                         const steps = existing?.completedSteps ?? [];
                         if (!steps.includes("bank_skipped")) steps.push("bank_skipped");
                         await updateBusiness(savedBusinessId, { completedSteps: steps });
-                        setBankSkipped(true);
-                      } catch (err) {
+                      } catch {
                         // non-blocking
                       }
+                      // Always navigate to dashboard whether skip succeeds or not
+                      router.replace("/dashboard");
                     }}
                     className="text-xs text-slate-500 underline"
                   >

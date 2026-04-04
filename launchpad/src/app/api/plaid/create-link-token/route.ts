@@ -3,24 +3,23 @@
  * Creates a Plaid Link token for the client to initiate bank connection
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/api-auth";
+import { requireSessionUser } from "@/lib/api-auth";
 import { plaidClient } from "@/lib/plaid";
 
 export async function POST(req: NextRequest) {
   try {
-    const { businessId } = await req.json();
-    if (!businessId) {
-      return NextResponse.json({ error: "businessId required" }, { status: 400 });
-    }
+    // businessId is optional — we use the session user's sub as the Plaid user ID
+    const body = await req.json().catch(() => ({}));
+    const { businessId } = body as { businessId?: string };
 
-    await requireBusinessAccess(businessId);
+    const sessionUser = await requireSessionUser();
 
     const response = await plaidClient.linkTokenCreate({
-      user: { client_user_id: businessId },
+      user: { client_user_id: sessionUser.sub },
       client_name: "Launchpad",
       language: "en",
       country_codes: ["US" as any],
-      products: ["auth", "transactions"] as any,
+      products: ["transactions"] as any,
     });
 
     return NextResponse.json({ link_token: response.data.link_token });

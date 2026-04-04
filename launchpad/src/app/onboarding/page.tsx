@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useBusiness } from "@/context/BusinessContext";
@@ -15,12 +15,19 @@ type Stage = "intro" | "chat" | "processing" | "results";
 
 export default function OnboardingPage() {
   const { user } = useAuth();
-  const { refreshBusiness } = useBusiness();
+  const { business, loading: bizLoading, refreshBusiness } = useBusiness();
   const router = useRouter();
 
   const [stage, setStage] = useState<Stage>("intro");
   const [result, setResult] = useState<OnboardingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // If user already has a business, skip onboarding entirely
+  useEffect(() => {
+    if (!bizLoading && business) {
+      router.replace("/dashboard");
+    }
+  }, [business, bizLoading, router]);
 
   const handleChatComplete = async (completedAnswers: OnboardingAnswers) => {
     setStage("processing");
@@ -49,8 +56,9 @@ export default function OnboardingPage() {
     const businessId = await createBusiness(user.sub, {
       ...result.businessProfile,
       ownerEmail: user.email ?? "",
-      // Store onboarding questionnaire answers so user doesn't have to re-complete
       onboardingStage: "formation",
+      // Mark onboarding as done — dashboard layout checks business existence,
+      // so as long as this record exists the user won't be sent back here.
       completedSteps: ["onboarding_questionnaire", "entity_recommendation", "compliance_mapping"],
       financials: {
         monthlyRevenueAvg: 0,
@@ -63,28 +71,36 @@ export default function OnboardingPage() {
       },
     });
 
-    for (const item of result.complianceItems) {
-      await addComplianceItem(businessId, {
-        ...item,
-        businessId,
-        status: "not_started",
-        obtainedDate: null,
-        expirationDate: null,
-        renewalDate: null,
-        daysUntilDue: null,
-        reminderSent30Days: false,
-        reminderSent14Days: false,
-        reminderSent3Days: false,
-        lastCheckedAt: new Date().toISOString(),
-        proofUrl: null,
-      });
-    }
+    // Add compliance items in parallel for speed
+    await Promise.all(
+      result.complianceItems.map((item) =>
+        addComplianceItem(businessId, {
+          ...item,
+          businessId,
+          status: "not_started",
+          obtainedDate: null,
+          expirationDate: null,
+          renewalDate: null,
+          daysUntilDue: null,
+          reminderSent30Days: false,
+          reminderSent14Days: false,
+          reminderSent3Days: false,
+          lastCheckedAt: new Date().toISOString(),
+          proofUrl: null,
+        })
+      )
+    );
 
+    // Refresh context so BusinessContext has the new record — this prevents
+    // the dashboard layout from redirecting back to /onboarding
     await refreshBusiness();
     return businessId;
   };
 
   if (stage === "intro") {
+    // Still checking if user already has a business — show nothing to avoid flash
+    if (bizLoading) return null;
+
     const features = [
       {
         icon: (
