@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateJSON } from "@/lib/vertex-ai";
 
+// Skip prerendering for this API route
+export const dynamic = "force-dynamic";
+
 interface QuoteAnalysisRequest {
   services: { serviceName: string; unitPrice: number; quantity: number; supplyCost: number }[];
   vehicleType?: string;

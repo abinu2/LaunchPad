@@ -3,6 +3,9 @@ import { requireSessionUser } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { serializeBusiness } from "@/lib/serializers";
 
+// Skip prerendering for this API route
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   let sessionUser;
   try {

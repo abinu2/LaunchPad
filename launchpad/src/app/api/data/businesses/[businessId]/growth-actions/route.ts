@@ -3,6 +3,9 @@ import { requireBusinessAccess } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { serializeGrowthAction } from "@/lib/serializers";
 
+// Skip prerendering for this API route
+export const dynamic = "force-dynamic";
+
 type Params = { params: Promise<{ businessId: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {

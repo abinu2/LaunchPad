@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { groqJSON, isGroqConfigured } from "@/lib/groq";
 import { generateJSON } from "@/lib/vertex-ai";
 
+// Skip prerendering for this API route
+export const dynamic = "force-dynamic";
+export const maxDuration = 10;
+
 interface OnboardingAnswers {
   businessDescription: string;
   workStructure: string;

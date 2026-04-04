@@ -12,6 +12,8 @@ import { groqJSON, isGroqConfigured } from "@/lib/groq";
 import { generateJSON } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
 
+// Skip prerendering for this API route
+export const dynamic = "force-dynamic";
 export const maxDuration = 10;
 
 interface ComplianceItemRaw {

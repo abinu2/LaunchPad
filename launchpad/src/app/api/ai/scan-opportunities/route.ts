@@ -12,6 +12,8 @@ import { generateJSON } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client/index.js";
 
+// Skip prerendering for this API route
+export const dynamic = "force-dynamic";
 export const maxDuration = 10;
 
 interface FundingOpportunityRaw {

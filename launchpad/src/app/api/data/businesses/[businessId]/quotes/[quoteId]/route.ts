@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
+// Skip prerendering for this API route
+export const dynamic = "force-dynamic";
+
 type Params = { params: Promise<{ businessId: string; quoteId: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Params) {

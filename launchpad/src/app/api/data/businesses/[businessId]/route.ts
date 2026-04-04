@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+
+// Skip prerendering for this API route
+export const dynamic = "force-dynamic";
 import { serializeBusiness } from "@/lib/serializers";
 
 type Params = { params: Promise<{ businessId: string }> };

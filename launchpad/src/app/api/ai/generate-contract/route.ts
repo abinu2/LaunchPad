@@ -10,6 +10,8 @@ import { requireBusinessAccess } from "@/lib/api-auth";
 import { groqText, isGroqConfigured } from "@/lib/groq";
 import { generateText, LONG_CONTEXT_MODEL } from "@/lib/vertex-ai";
 
+// Skip prerendering for this API route
+export const dynamic = "force-dynamic";
 export const maxDuration = 10;
 
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
