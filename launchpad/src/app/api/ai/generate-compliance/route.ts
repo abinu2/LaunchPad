@@ -10,7 +10,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
 import { generateJSON } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
 
 export const maxDuration = 120;
 
@@ -131,7 +130,7 @@ Return ONLY the JSON array. No explanation, no markdown.`;
         applicationUrl: item.applicationUrl,
         cost: item.cost,
         estimatedProcessingTime: item.estimatedProcessingTime,
-        documentationRequired: item.documentationRequired as unknown as Prisma.InputJsonValue,
+        documentationRequired: item.documentationRequired,
         penaltyForNonCompliance: item.penaltyForNonCompliance,
         reminderSent30Days: false,
         reminderSent14Days: false,

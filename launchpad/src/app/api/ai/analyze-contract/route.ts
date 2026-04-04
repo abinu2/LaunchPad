@@ -22,7 +22,6 @@ import { requireBusinessAccess } from "@/lib/api-auth";
 import { generateJSONWithFile, LONG_CONTEXT_MODEL } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
 import { serializeContract } from "@/lib/serializers";
-import type { Prisma } from "@prisma/client";
 import type { Contract, ContractAnalysis, ContractObligation } from "@/types/contract";
 
 export const maxDuration = 120;
@@ -277,8 +276,8 @@ export async function POST(req: NextRequest) {
           estimatedAnnualCost: ai.estimatedAnnualCost,
           counterProposalDraft: ai.counterProposalDraft,
           playbookDeviations: ai.playbookDeviations,
-        } as unknown as Prisma.InputJsonValue,
-        obligations: obligations as unknown as Prisma.InputJsonValue,
+        },
+        obligations,
       },
     });
 
