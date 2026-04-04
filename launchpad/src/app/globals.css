@@ -12,6 +12,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Ensure pages can scroll when content exceeds the viewport */
+body {
+  min-height: 100vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
