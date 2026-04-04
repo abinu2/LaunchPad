@@ -20,7 +20,7 @@ const URGENCY_DOT: Record<string, string> = {
 export function GrowthQuadrant({ business, quotes, opportunities = [], actions = [] }: Props) {
   const ytd = business.financials?.totalRevenueYTD ?? 0;
   const monthsOp = business.formationDate
-    ? Math.floor((Date.now() - new Date(business.formationDate).getTime()) / (30 * 86400000))
+    ? Math.floor((new Date().getTime() - new Date(business.formationDate).getTime()) / (30 * 86400000))
     : 0;
 
   // Build a prioritised list of up to 3 items to show
@@ -39,7 +39,7 @@ export function GrowthQuadrant({ business, quotes, opportunities = [], actions =
     .sort((a, b) => (a.applicationDeadline ?? "").localeCompare(b.applicationDeadline ?? ""))[0];
   if (urgentOpp && items.length < 3) {
     const days = urgentOpp.applicationDeadline
-      ? Math.ceil((new Date(urgentOpp.applicationDeadline).getTime() - Date.now()) / 86400000)
+      ? Math.ceil((new Date(urgentOpp.applicationDeadline).getTime() - new Date().getTime()) / 86400000)
       : null;
     items.push({
       label: urgentOpp.name,

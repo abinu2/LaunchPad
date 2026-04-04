@@ -17,7 +17,8 @@ import {
 } from "@/lib/document-ai";
 import { fetchWithRetry } from "@/lib/fetch-file";
 
-export const maxDuration = 10;
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
 
 const RECEIPT_SCHEMA = `{
   "vendor":"string","amount":number,"date":"YYYY-MM-DD",

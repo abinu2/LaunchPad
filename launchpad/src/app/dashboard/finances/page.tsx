@@ -82,6 +82,23 @@ export default function FinancesPage() {
     load();
   }, [load]);
 
+  const handlePlaidSuccess = async () => {
+    // Auto-sync immediately after connecting so data appears right away
+    setSyncing(true);
+    try {
+      await fetch("/api/plaid/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId: business?.id }),
+      });
+    } catch {
+      // non-blocking
+    } finally {
+      setSyncing(false);
+    }
+    await load();
+  };
+
   const handleSync = async () => {
     if (!business?.id) return;
     setSyncing(true);
@@ -97,7 +114,9 @@ export default function FinancesPage() {
     }
   };
 
-  if (loading) return <AILoadingScreen title="Loading finances" steps={["Fetching transactions", "Loading quotes", "Calculating P&L"]} variant="inline" />;
+  if (loading) {
+    return <AILoadingScreen title="Loading finances" steps={["Fetching transactions", "Loading quotes", "Calculating P&L"]} variant="inline" />;
+  }
 
   const finance = summarizeFinances(quotes, receipts);
   const bank = summarizeBankCash(bankTxs);
@@ -143,7 +162,7 @@ export default function FinancesPage() {
               {syncing ? "Syncing..." : "Sync"}
             </button>
           )}
-          {business?.id && <PlaidConnectButton businessId={business.id} onSuccess={load} />}
+          {business?.id && <PlaidConnectButton businessId={business.id} onSuccess={handlePlaidSuccess} />}
         </div>
       </div>
 

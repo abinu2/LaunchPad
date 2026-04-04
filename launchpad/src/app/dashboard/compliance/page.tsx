@@ -166,7 +166,7 @@ function CalendarView({ items }: { items: ComplianceItem[] }) {
     const dueDate = item.expirationDate
       ? new Date(item.expirationDate)
       : item.daysUntilDue !== null
-      ? new Date(Date.now() + item.daysUntilDue * 86400000)
+      ? new Date(now.getTime() + item.daysUntilDue * 86400000)
       : null;
     if (!dueDate) return;
     if (dueDate.getFullYear() === year && dueDate.getMonth() === month) {

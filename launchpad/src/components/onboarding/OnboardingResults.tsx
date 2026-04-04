@@ -11,7 +11,6 @@ interface Props {
   result: OnboardingResult;
   // return created businessId so parent can offer bank connect before navigation
   onSave: () => Promise<string>;
-  businessId?: string;
 }
 
 const riskColor = {
@@ -20,11 +19,11 @@ const riskColor = {
   high: "bg-red-100 text-red-700",
 };
 
-export function OnboardingResults({ result, onSave, businessId }: Props) {
+export function OnboardingResults({ result, onSave }: Props) {
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState<string | null>("entity");
   const [bankConnected, setBankConnected] = useState(false);
-  const [savedBusinessId, setSavedBusinessId] = useState<string | null>(businessId ?? null);
+  const [savedBusinessId, setSavedBusinessId] = useState<string | null>(null);
   const [bankSkipped, setBankSkipped] = useState(false);
   const router = useRouter();
 

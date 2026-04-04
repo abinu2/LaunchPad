@@ -1,13 +1,14 @@
 /**
  * POST /api/ai/analyze-contract
  *
- * Optimized for Vercel Hobby plan (10 s function limit).
- * All independent I/O is parallelized. Prompts are lean.
+ * Uses a streaming response to avoid Vercel Hobby's 10 s function timeout.
+ * The client receives a JSON object streamed as a single chunk — the stream
+ * keeps the connection alive while Groq processes the document.
  *
- * PDFs  → pdf-parse + Groq text  (~4-7 s total)
- * Images → Groq vision one-shot  (~3-5 s total)
+ * PDFs  → pdf-parse + Groq text  (~4-7 s)
+ * Images → Groq vision one-shot  (~3-5 s)
  */
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
 import {
   analyzeImageWithGroqVision,
@@ -22,10 +23,13 @@ import { serializeContract } from "@/lib/serializers";
 import type { Contract, ContractAnalysis, ContractObligation } from "@/types/contract";
 import { prisma } from "@/lib/prisma";
 
-export const maxDuration = 10;
-const MAX_CONTRACT_ANALYSIS_CHARS = 40_000;
+// Edge runtime bypasses the 10 s serverless limit on Hobby plan.
+// pdf-parse uses Node.js APIs so we stay on nodejs runtime but use
+// streaming to keep the connection alive past the wall-clock limit.
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
 
-/* ── Lean JSON schema — only fields the app actually uses ──────────────────── */
+const MAX_CONTRACT_ANALYSIS_CHARS = 40_000;
 const CONTRACT_SCHEMA = `{
   "summary":"2-3 sentence plain English summary",
   "contractType":"service_agreement|vendor_agreement|lease|partnership|employment|financing|other",
@@ -105,99 +109,105 @@ type ContractAIResult = {
 };
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json() as {
-      fileBase64?: string;
-      fileUrl?: string;
-      fileName?: string;
-      fileType?: string;
-      fileMimeType?: string;
-      businessId?: string;
-    };
+  // Use a streaming response so Vercel doesn't kill the connection at 10 s.
+  // The entire JSON is sent as one chunk once processing completes.
+  const stream = new TransformStream();
+  const writer = stream.writable.getWriter();
+  const encoder = new TextEncoder();
 
-    const { fileBase64, fileUrl, fileName, fileType, businessId } = body;
-    const fileMimeType = body.fileMimeType ?? "";
+  const respond = async (data: unknown, status = 200) => {
+    const json = JSON.stringify(data);
+    await writer.write(encoder.encode(json));
+    await writer.close();
+    return status;
+  };
 
-    if (!businessId || (!fileBase64 && !fileUrl)) {
-      return NextResponse.json(
-        { error: "businessId and either fileBase64 or fileUrl are required" },
-        { status: 400 }
+  const processAsync = async () => {
+    try {
+      const body = await req.json() as {
+        fileBase64?: string;
+        fileUrl?: string;
+        fileName?: string;
+        fileType?: string;
+        fileMimeType?: string;
+        businessId?: string;
+      };
+
+      const { fileBase64, fileUrl, fileName, fileType, businessId } = body;
+      const fileMimeType = body.fileMimeType ?? "";
+
+      if (!businessId || (!fileBase64 && !fileUrl)) {
+        await respond({ error: "businessId and either fileBase64 or fileUrl are required" }, 400);
+        return;
+      }
+
+      const normalizedMime = normalizeDocumentMimeType(
+        fileMimeType || (fileType === "pdf" ? "application/pdf" : "")
       );
-    }
 
-    const normalizedMime = normalizeDocumentMimeType(
-      fileMimeType || (fileType === "pdf" ? "application/pdf" : "")
-    );
+      if (!isSupportedDocumentMimeType(normalizedMime)) {
+        await respond({ error: "Unsupported file type. Upload a PDF or image (JPG, PNG, WEBP)." }, 415);
+        return;
+      }
 
-    if (!isSupportedDocumentMimeType(normalizedMime)) {
-      return NextResponse.json(
-        { error: "Unsupported file type. Upload a PDF or image (JPG, PNG, WEBP)." },
-        { status: 415 }
-      );
-    }
+      const [{ business }, fileBuffer] = await Promise.all([
+        requireBusinessAccess(businessId),
+        fileBase64
+          ? Promise.resolve(Buffer.from(fileBase64, "base64"))
+          : fetchWithRetry(fileUrl!).then((r) => r.arrayBuffer()).then((ab) => Buffer.from(ab)),
+      ]);
 
-    // ── Parallelize: auth + file download + business name lookup ───────────────
-    const [{ business }, fileBuffer] = await Promise.all([
-      requireBusinessAccess(businessId),
-      fileBase64
-        ? Promise.resolve(Buffer.from(fileBase64, "base64"))
-        : fetchWithRetry(fileUrl!).then((r) => r.arrayBuffer()).then((ab) => Buffer.from(ab)),
-    ]);
+      const bizName = business.businessName ?? "the business owner";
 
-    const bizName = business.businessName ?? "the business owner";
+      let ai: ContractAIResult;
 
-    // ── AI analysis ───────────────────────────────────────────────────────────
-    let ai: ContractAIResult;
-
-    if (isImageMimeType(normalizedMime)) {
-      const visionResult = await analyzeImageWithGroqVision<ContractAIResult>(
-        buildVisionPrompt(bizName),
-        fileBuffer,
-        normalizedMime
-      );
-      if (visionResult) {
-        ai = visionResult;
+      if (isImageMimeType(normalizedMime)) {
+        const visionResult = await analyzeImageWithGroqVision<ContractAIResult>(
+          buildVisionPrompt(bizName),
+          fileBuffer,
+          normalizedMime
+        );
+        if (visionResult) {
+          ai = visionResult;
+        } else {
+          const contractText = await extractDocumentText(fileBuffer, normalizedMime, {
+            minCharacters: 50,
+            preferOcr: true,
+          });
+          ai = await generatePreferredJSON<ContractAIResult>(
+            buildPrompt(limitContractText(contractText), bizName)
+          );
+        }
       } else {
         const contractText = await extractDocumentText(fileBuffer, normalizedMime, {
           minCharacters: 50,
-          preferOcr: true,
+          preferOcr: false,
         });
         ai = await generatePreferredJSON<ContractAIResult>(
           buildPrompt(limitContractText(contractText), bizName)
         );
       }
-    } else {
-      const contractText = await extractDocumentText(fileBuffer, normalizedMime, {
-        minCharacters: 50,
-        preferOcr: false,
-      });
-      ai = await generatePreferredJSON<ContractAIResult>(
-        buildPrompt(limitContractText(contractText), bizName)
-      );
-    }
 
-    // ── Persist ───────────────────────────────────────────────────────────────
-    const now = new Date();
-    let status: Contract["status"] = "active";
-    if (ai.expirationDate) {
-      const days = Math.ceil((new Date(ai.expirationDate).getTime() - now.getTime()) / 86400000);
-      if (days < 0) status = "expired";
-      else if (days <= 30) status = "expiring_soon";
-    }
+      const now = new Date();
+      let status: Contract["status"] = "active";
+      if (ai.expirationDate) {
+        const days = Math.ceil((new Date(ai.expirationDate).getTime() - now.getTime()) / 86400000);
+        if (days < 0) status = "expired";
+        else if (days <= 30) status = "expiring_soon";
+      }
 
-    const obligations: ContractObligation[] = (ai.obligations ?? []).map((o, i) => ({
-      ...o,
-      clauseRef: "",
-      triggerDescription: "",
-      monitoredField: null,
-      monitoredThreshold: null,
-      notes: null,
-      id: `obl_${Date.now()}_${i}`,
-      lastChecked: now.toISOString(),
-    }));
+      const obligations: ContractObligation[] = (ai.obligations ?? []).map((o, i) => ({
+        ...o,
+        clauseRef: "",
+        triggerDescription: "",
+        monitoredField: null,
+        monitoredThreshold: null,
+        notes: null,
+        id: `obl_${Date.now()}_${i}`,
+        lastChecked: now.toISOString(),
+      }));
 
-    const analysisPayload = JSON.parse(
-      JSON.stringify({
+      const analysisPayload = JSON.parse(JSON.stringify({
         summary: ai.summary,
         riskLevel: ai.riskLevel,
         clauses: ai.clauses ?? [],
@@ -207,45 +217,51 @@ export async function POST(req: NextRequest) {
         estimatedAnnualCost: ai.estimatedAnnualCost,
         counterProposalDraft: ai.counterProposalDraft ?? null,
         playbookDeviations: ai.playbookDeviations ?? [],
-      })
-    );
-    const obligationsPayload = JSON.parse(JSON.stringify(obligations));
+      }));
 
-    const contract = await prisma.contract.create({
-      data: {
-        businessId,
-        fileName: fileName ?? "contract",
-        fileUrl: fileUrl ?? "",
-        fileType: fileType ?? "pdf",
-        contractType: ai.contractType ?? "other",
-        counterpartyName: ai.counterpartyName ?? "Unknown",
-        effectiveDate: ai.effectiveDate ?? null,
-        expirationDate: ai.expirationDate ?? null,
-        autoRenews: ai.autoRenews ?? false,
-        autoRenewalDate: ai.autoRenewalDate ?? null,
-        autoRenewalNoticePeriod: ai.autoRenewalNoticePeriod ?? null,
-        terminationNoticePeriod: ai.terminationNoticePeriod ?? null,
-        totalValue: ai.totalValue ?? null,
-        monthlyValue: ai.monthlyValue ?? null,
-        healthScore: ai.healthScore ?? 75,
-        status,
-        analysis: analysisPayload,
-        obligations: obligationsPayload,
-      },
-    });
+      const contract = await prisma.contract.create({
+        data: {
+          businessId,
+          fileName: fileName ?? "contract",
+          fileUrl: fileUrl ?? "",
+          fileType: fileType ?? "pdf",
+          contractType: ai.contractType ?? "other",
+          counterpartyName: ai.counterpartyName ?? "Unknown",
+          effectiveDate: ai.effectiveDate ?? null,
+          expirationDate: ai.expirationDate ?? null,
+          autoRenews: ai.autoRenews ?? false,
+          autoRenewalDate: ai.autoRenewalDate ?? null,
+          autoRenewalNoticePeriod: ai.autoRenewalNoticePeriod ?? null,
+          terminationNoticePeriod: ai.terminationNoticePeriod ?? null,
+          totalValue: ai.totalValue ?? null,
+          monthlyValue: ai.monthlyValue ?? null,
+          healthScore: ai.healthScore ?? 75,
+          status,
+          analysis: analysisPayload,
+          obligations: JSON.parse(JSON.stringify(obligations)),
+        },
+      });
 
-    return NextResponse.json(serializeContract(contract));
-  } catch (err) {
-    console.error("analyze-contract error:", err);
-    const message = err instanceof Error ? err.message : "Contract analysis failed";
-    const isConfig =
-      message.includes("API_KEY") ||
-      message.includes("BLOB_READ_WRITE_TOKEN") ||
-      message.includes("GROQ_API_KEY") ||
-      message.includes("GEMINI_API_KEY");
-    return NextResponse.json(
-      { error: isConfig ? message : "Contract analysis failed — please try again" },
-      { status: 500 }
-    );
-  }
+      await respond(serializeContract(contract));
+    } catch (err) {
+      console.error("analyze-contract error:", err);
+      const message = err instanceof Error ? err.message : "Contract analysis failed";
+      const isConfig =
+        message.includes("API_KEY") ||
+        message.includes("BLOB_READ_WRITE_TOKEN") ||
+        message.includes("GROQ_API_KEY") ||
+        message.includes("GEMINI_API_KEY");
+      await respond(
+        { error: isConfig ? message : "Contract analysis failed — please try again" },
+        500
+      );
+    }
+  };
+
+  // Fire processing without awaiting — the stream keeps the connection alive
+  void processAsync();
+
+  return new Response(stream.readable, {
+    headers: { "Content-Type": "application/json" },
+  });
 }

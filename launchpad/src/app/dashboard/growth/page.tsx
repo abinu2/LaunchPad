@@ -65,7 +65,7 @@ const EFFORT_LABEL: Record<string, string> = {
 function computeMilestones(business: BusinessProfile, quotes: Quote[]) {
   const ytd = business.financials?.totalRevenueYTD ?? 0;
   const monthsOp = business.formationDate
-    ? Math.floor((Date.now() - new Date(business.formationDate).getTime()) / (30 * 86400000))
+    ? Math.floor((new Date().getTime() - new Date(business.formationDate).getTime()) / (30 * 86400000))
     : 0;
   const sentQuotes = quotes.filter((q) =>
     ["sent", "viewed", "accepted", "declined", "paid"].includes(q.status)
@@ -624,6 +624,7 @@ function DigestTab({
   business: BusinessProfile;
   opportunities: FundingOpportunity[];
 }) {
+  const now = new Date();
   const monthlyAvg = business.financials?.monthlyRevenueAvg ?? 0;
   const weeklyAvg = monthlyAvg / 4.3;
   const revenueVsAvg = weeklyAvg > 0
@@ -632,7 +633,7 @@ function DigestTab({
 
   const urgentOpps = opportunities.filter(
     (o) => o.applicationDeadline &&
-      Math.ceil((new Date(o.applicationDeadline).getTime() - Date.now()) / 86400000) <= 21
+      Math.ceil((new Date(o.applicationDeadline).getTime() - now.getTime()) / 86400000) <= 21
   );
 
   return (
@@ -670,7 +671,7 @@ function DigestTab({
           <p className="font-semibold text-slate-900 mb-3">Funding deadlines this month</p>
           <div className="space-y-2">
             {urgentOpps.map((opp) => {
-              const days = Math.ceil((new Date(opp.applicationDeadline!).getTime() - Date.now()) / 86400000);
+              const days = Math.ceil((new Date(opp.applicationDeadline!).getTime() - now.getTime()) / 86400000);
               return (
                 <div key={opp.id} className="flex items-center justify-between text-sm">
                   <span className="text-slate-700 truncate flex-1 mr-3">{opp.name}</span>

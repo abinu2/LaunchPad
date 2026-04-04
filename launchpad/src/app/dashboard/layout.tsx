@@ -35,9 +35,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!user || !business) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="h-screen bg-slate-50 flex flex-col">
       <DashboardNav business={business} />
-      <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-6xl mx-auto px-4 py-6">{children}</div>
+      </main>
     </div>
   );
 }

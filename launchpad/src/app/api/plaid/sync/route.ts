@@ -3,6 +3,8 @@ import { requireBusinessAccess } from "@/lib/api-auth";
 import { plaidClient } from "@/lib/plaid";
 import { prisma } from "@/lib/prisma";
 
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const { businessId } = await req.json();
@@ -16,85 +18,72 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No connected bank accounts" }, { status: 404 });
     }
 
-    const allAccounts: ReturnType<typeof mapAccount>[] = [];
-    const allTransactions: ReturnType<typeof mapTransaction>[] = [];
+    // Parallelize all connection syncs
+    const results = await Promise.allSettled(
+      connections.map(async (conn) => {
+        try {
+          const [accountsRes, txRes] = await Promise.all([
+            plaidClient.accountsGet({ access_token: conn.accessToken }),
+            plaidClient.transactionsGet({
+              access_token: conn.accessToken,
+              start_date: new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10),
+              end_date: new Date().toISOString().slice(0, 10),
+              options: { count: 500, offset: 0 },
+            }),
+          ]);
 
-    for (const conn of connections) {
-      try {
-        const accountsRes = await plaidClient.accountsGet({ access_token: conn.accessToken });
-        const accounts = accountsRes.data.accounts.map(mapAccount);
-        allAccounts.push(...accounts);
+          const accounts = accountsRes.data.accounts.map(mapAccount);
+          const transactions = txRes.data.transactions.map(mapTransaction);
 
-        const endDate = new Date().toISOString().slice(0, 10);
-        const startDate = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
-        const txRes = await plaidClient.transactionsGet({
-          access_token: conn.accessToken,
-          start_date: startDate,
-          end_date: endDate,
-          options: { count: 500, offset: 0 },
-        });
-        allTransactions.push(...txRes.data.transactions.map(mapTransaction));
+          await prisma.plaidConnection.update({
+            where: { id: conn.id },
+            data: { accounts, lastSyncedAt: new Date(), status: "active", errorCode: null },
+          });
 
-        await prisma.plaidConnection.update({
-          where: { id: conn.id },
-          data: {
-            accounts,
-            lastSyncedAt: new Date(),
-            status: "active",
-            errorCode: null,
-          },
-        });
-      } catch (itemErr: unknown) {
-        const errCode = (itemErr as { response?: { data?: { error_code?: string } } })?.response?.data?.error_code;
-        await prisma.plaidConnection.update({
-          where: { id: conn.id },
-          data: { status: "error", errorCode: errCode ?? "UNKNOWN" },
-        });
-      }
-    }
+          return { accounts, transactions };
+        } catch (itemErr: unknown) {
+          const errCode = (itemErr as { response?: { data?: { error_code?: string } } })?.response?.data?.error_code;
+          await prisma.plaidConnection.update({
+            where: { id: conn.id },
+            data: { status: "error", errorCode: errCode ?? "UNKNOWN" },
+          });
+          return { accounts: [], transactions: [] };
+        }
+      })
+    );
+
+    const allAccounts = results.flatMap((r) => r.status === "fulfilled" ? r.value.accounts : []);
+    const allTransactions = results.flatMap((r) => r.status === "fulfilled" ? r.value.transactions : []);
 
     const income = allTransactions.filter((t) => !t.pending && t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
     const expenses = allTransactions.filter((t) => !t.pending && t.amount > 0).reduce((s, t) => s + t.amount, 0);
     const currentBalance = allAccounts.filter((a) => a.type === "depository").reduce((s, a) => s + (a.balances.current ?? 0), 0);
 
-    await prisma.business.update({
-      where: { id: businessId },
-      data: {
-        currentCashBalance: currentBalance,
-        financialsUpdatedAt: new Date(),
-      },
-    });
-
-    for (const tx of allTransactions.slice(0, 200)) {
-      await prisma.bankTransaction.upsert({
-        where: { transactionId: tx.transaction_id },
-        update: {
-          businessId,
-          accountId: tx.account_id,
-          amount: tx.amount,
-          date: tx.date,
-          name: tx.name,
-          merchantName: tx.merchant_name ?? null,
-          category: tx.category ?? [],
-          pending: tx.pending,
-          paymentChannel: tx.payment_channel,
-          personalFinanceCategory: tx.personal_finance_category ?? undefined,
-        },
-        create: {
-          businessId,
-          transactionId: tx.transaction_id,
-          accountId: tx.account_id,
-          amount: tx.amount,
-          date: tx.date,
-          name: tx.name,
-          merchantName: tx.merchant_name ?? null,
-          category: tx.category ?? [],
-          pending: tx.pending,
-          paymentChannel: tx.payment_channel,
-          personalFinanceCategory: tx.personal_finance_category ?? undefined,
-        },
-      });
-    }
+    // Update business cash balance + upsert transactions in parallel
+    await Promise.all([
+      prisma.business.update({
+        where: { id: businessId },
+        data: { currentCashBalance: currentBalance, financialsUpdatedAt: new Date() },
+      }),
+      ...allTransactions.slice(0, 200).map((tx) =>
+        prisma.bankTransaction.upsert({
+          where: { transactionId: tx.transaction_id },
+          update: {
+            businessId, accountId: tx.account_id, amount: tx.amount, date: tx.date,
+            name: tx.name, merchantName: tx.merchant_name ?? null, category: tx.category ?? [],
+            pending: tx.pending, paymentChannel: tx.payment_channel,
+            personalFinanceCategory: tx.personal_finance_category ?? undefined,
+          },
+          create: {
+            businessId, transactionId: tx.transaction_id, accountId: tx.account_id,
+            amount: tx.amount, date: tx.date, name: tx.name,
+            merchantName: tx.merchant_name ?? null, category: tx.category ?? [],
+            pending: tx.pending, paymentChannel: tx.payment_channel,
+            personalFinanceCategory: tx.personal_finance_category ?? undefined,
+          },
+        })
+      ),
+    ]);
 
     return NextResponse.json({
       accounts: allAccounts,

@@ -63,9 +63,11 @@ export default function ProtectionPage() {
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <h2 className="font-semibold text-slate-900 mb-3">Upcoming deadlines</h2>
           <div className="space-y-2">
-            {upcoming.map((c) => {
-              const date = c.autoRenewalDate ?? c.expirationDate;
-              const days = date ? Math.ceil((new Date(date).getTime() - Date.now()) / 86400000) : null;
+            {(() => {
+              const now = new Date();
+              return upcoming.map((c) => {
+                const date = c.autoRenewalDate ?? c.expirationDate;
+                const days = date ? Math.ceil((new Date(date).getTime() - now.getTime()) / 86400000) : null;
               return (
                 <div key={c.id} className="flex items-center justify-between text-sm">
                   <span className="text-slate-700">{c.counterpartyName}</span>

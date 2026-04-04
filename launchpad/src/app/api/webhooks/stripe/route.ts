@@ -1,37 +1,67 @@
+/**
+ * POST /api/webhooks/stripe
+ * Handles Stripe webhook events (payment confirmations, etc.)
+ */
 import { NextRequest, NextResponse } from "next/server";
-import { getStripe, hasStripeWebhookConfig } from "@/lib/stripe";
-import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
+import { prisma } from "@/lib/prisma";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+  apiVersion: "2024-12-18.acacia",
+});
+
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
 
 export async function POST(req: NextRequest) {
-  if (!hasStripeWebhookConfig()) {
-    return NextResponse.json({ received: false, disabled: true }, { status: 200 });
-  }
-
-  const body = await req.text();
-  const sig = req.headers.get("stripe-signature")!;
-
-  let event: Stripe.Event;
   try {
-    event = getStripe().webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
-  } catch {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
-  }
+    const body = await req.text();
+    const signature = req.headers.get("stripe-signature");
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const { quoteId, businessId } = session.metadata ?? {};
-    if (quoteId && businessId) {
-      await prisma.quote.updateMany({
-        where: { id: quoteId, businessId },
-        data: {
-          status: "paid",
-          paidAt: new Date(),
-          paymentMethod: "stripe",
-        },
-      });
+    if (!signature) {
+      return NextResponse.json({ error: "Missing signature" }, { status: 400 });
     }
-  }
 
-  return NextResponse.json({ received: true });
+    let event: Stripe.Event;
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    } catch (err) {
+      console.error("Webhook signature verification failed:", err);
+      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    }
+
+    // Handle payment_intent.succeeded
+    if (event.type === "payment_intent.succeeded") {
+      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+      const quoteId = paymentIntent.metadata?.quoteId;
+
+      if (quoteId) {
+        await prisma.quote.update({
+          where: { id: quoteId },
+          data: {
+            status: "paid",
+            paidAt: new Date(),
+            stripePaymentIntentId: paymentIntent.id,
+          },
+        });
+      }
+    }
+
+    // Handle payment_intent.payment_failed
+    if (event.type === "payment_intent.payment_failed") {
+      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+      const quoteId = paymentIntent.metadata?.quoteId;
+
+      if (quoteId) {
+        await prisma.quote.update({
+          where: { id: quoteId },
+          data: { status: "declined" },
+        });
+      }
+    }
+
+    return NextResponse.json({ received: true });
+  } catch (err) {
+    console.error("Stripe webhook error:", err);
+    return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
+  }
 }

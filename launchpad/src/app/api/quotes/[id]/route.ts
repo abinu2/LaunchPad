@@ -1,44 +1,57 @@
+/**
+ * GET/PATCH /api/quotes/[id]
+ * Retrieve or update a specific quote
+ */
 import { NextRequest, NextResponse } from "next/server";
+import { requireBusinessAccess } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
-import { serializeQuote } from "@/lib/serializers";
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const businessId = req.nextUrl.searchParams.get("businessId");
-  if (!businessId) return NextResponse.json({ error: "businessId required" }, { status: 400 });
-
-  const quote = await prisma.quote.findFirst({ where: { id, businessId } });
-  if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  let viewQuote = quote;
-  if (quote.status === "sent") {
-    viewQuote = await prisma.quote.update({
-      where: { id: quote.id },
-      data: { status: "viewed", viewedAt: new Date() },
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const quote = await prisma.quote.findUnique({
+      where: { id: params.id },
     });
+
+    if (!quote) {
+      return NextResponse.json({ error: "Quote not found" }, { status: 404 });
+    }
+
+    await requireBusinessAccess(quote.businessId);
+
+    return NextResponse.json(quote);
+  } catch (err) {
+    console.error("quote GET error:", err);
+    return NextResponse.json({ error: "Failed to fetch quote" }, { status: 500 });
   }
-
-  const business = await prisma.business.findUnique({ where: { id: businessId } });
-
-  return NextResponse.json({
-    quote: serializeQuote(viewQuote),
-    business: {
-      businessName: business?.businessName,
-      ownerName: business?.ownerName,
-      ownerPhone: business?.ownerPhone,
-    },
-  });
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const { businessId, ...updates } = await req.json();
-  if (!businessId) return NextResponse.json({ error: "businessId required" }, { status: 400 });
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const quote = await prisma.quote.findUnique({
+      where: { id: params.id },
+    });
 
-  await prisma.quote.updateMany({
-    where: { id, businessId },
-    data: updates,
-  });
+    if (!quote) {
+      return NextResponse.json({ error: "Quote not found" }, { status: 404 });
+    }
 
-  return NextResponse.json({ success: true });
+    await requireBusinessAccess(quote.businessId);
+
+    const data = await req.json();
+    const updated = await prisma.quote.update({
+      where: { id: params.id },
+      data,
+    });
+
+    return NextResponse.json(updated);
+  } catch (err) {
+    console.error("quote PATCH error:", err);
+    return NextResponse.json({ error: "Failed to update quote" }, { status: 500 });
+  }
 }

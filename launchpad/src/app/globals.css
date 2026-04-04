@@ -13,8 +13,9 @@ body {
 }
 
 /* Ensure pages can scroll when content exceeds the viewport */
+html,
 body {
-  min-height: 100vh;
+  height: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }

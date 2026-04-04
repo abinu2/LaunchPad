@@ -49,6 +49,9 @@ export default function OnboardingPage() {
     const businessId = await createBusiness(user.sub, {
       ...result.businessProfile,
       ownerEmail: user.email ?? "",
+      // Store onboarding questionnaire answers so user doesn't have to re-complete
+      onboardingStage: "formation",
+      completedSteps: ["onboarding_questionnaire", "entity_recommendation", "compliance_mapping"],
       financials: {
         monthlyRevenueAvg: 0,
         monthlyExpenseAvg: 0,

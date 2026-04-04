@@ -1,3 +1,7 @@
+/**
+ * POST /api/plaid/exchange-token
+ * Exchanges Plaid Link public token for access token and stores connection
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
 import { plaidClient } from "@/lib/plaid";
@@ -5,56 +9,50 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
-    const { publicToken, businessId, institutionId, institutionName } = await req.json();
+    const { businessId, publicToken } = await req.json();
+    if (!businessId || !publicToken) {
+      return NextResponse.json({ error: "businessId and publicToken required" }, { status: 400 });
+    }
+
     await requireBusinessAccess(businessId);
 
-    const exchangeRes = await plaidClient.itemPublicTokenExchange({ public_token: publicToken });
-    const { access_token, item_id } = exchangeRes.data;
+    // Exchange public token for access token
+    const exchangeResponse = await plaidClient.itemPublicTokenExchange({
+      public_token: publicToken,
+    });
 
-    const accountsRes = await plaidClient.accountsGet({ access_token });
-    const accounts = accountsRes.data.accounts.map((a) => ({
-      account_id: a.account_id,
-      name: a.name,
-      official_name: a.official_name ?? null,
-      type: a.type,
-      subtype: a.subtype ?? null,
-      mask: a.mask ?? null,
-      balances: {
-        available: a.balances.available ?? null,
-        current: a.balances.current ?? null,
-        limit: a.balances.limit ?? null,
-        iso_currency_code: a.balances.iso_currency_code ?? null,
-      },
-    }));
+    const accessToken = exchangeResponse.data.access_token;
+    const itemId = exchangeResponse.data.item_id;
 
-    await prisma.plaidConnection.upsert({
-      where: { itemId: item_id },
-      update: {
+    // Get institution info
+    const itemResponse = await plaidClient.itemGet({ access_token: accessToken });
+    const institutionId = itemResponse.data.item.institution_id;
+
+    const institutionResponse = await plaidClient.institutionsGetById({
+      institution_id: institutionId,
+      country_codes: ["US"],
+    });
+    const institutionName = institutionResponse.data.institution.name;
+
+    // Store connection in database
+    const connection = await prisma.plaidConnection.create({
+      data: {
         businessId,
-        accessToken: access_token,
+        itemId,
+        accessToken,
         institutionId,
         institutionName,
-        accounts,
         status: "active",
-        errorCode: null,
-        lastSyncedAt: null,
-      },
-      create: {
-        businessId,
-        itemId: item_id,
-        accessToken: access_token,
-        institutionId,
-        institutionName,
-        accounts,
-        status: "active",
-        errorCode: null,
-        lastSyncedAt: null,
       },
     });
 
-    return NextResponse.json({ success: true, accounts, itemId: item_id });
+    return NextResponse.json({
+      success: true,
+      connectionId: connection.id,
+      institutionName,
+    });
   } catch (err) {
-    console.error("Plaid exchange-token error:", err);
-    return NextResponse.json({ error: "Failed to connect bank account" }, { status: 500 });
+    console.error("exchange-token error:", err);
+    return NextResponse.json({ error: "Failed to exchange token" }, { status: 500 });
   }
 }

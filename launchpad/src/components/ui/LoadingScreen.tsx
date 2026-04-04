@@ -407,7 +407,7 @@ export function SkeletonCard({ lines = 3 }: { lines?: number }) {
     <div className="bg-white rounded-xl border border-slate-100 p-4 space-y-3">
       <SkeletonLine width="60%" height="h-4" />
       {Array.from({ length: lines - 1 }).map((_, i) => (
-        <SkeletonLine key={i} width={`${70 + Math.random() * 25}%`} />
+        <SkeletonLine key={i} width={`${70 + (i * 13) % 25}%`} />
       ))}
     </div>
   );
