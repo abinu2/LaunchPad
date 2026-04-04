@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useBusiness } from "@/context/BusinessContext";
@@ -30,11 +30,6 @@ const statusVariant: Record<string, "success" | "warning" | "danger" | "info" | 
   draft: "neutral",
   under_review: "info",
 };
-
-function daysUntil(dateStr: string | null): number | null {
-  if (!dateStr) return null;
-  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
-}
 
 function TimelineBar({ contract: c }: { contract: Contract }) {
   const start = c.effectiveDate ? new Date(c.effectiveDate) : null;
@@ -101,14 +96,20 @@ export default function ContractDetailPage() {
   const [showCounterProposal, setShowCounterProposal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const load = useCallback(async () => {
+  useEffect(() => {
     if (!business?.id || !id) return;
-    const c = await getContract(business.id, id);
-    setContract(c);
-    setLoading(false);
-  }, [business?.id, id]);
+    let cancelled = false;
 
-  useEffect(() => { load(); }, [load]);
+    void getContract(business.id, id).then((result) => {
+      if (cancelled) return;
+      setContract(result);
+      setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [business, id]);
 
   const handleObligationUpdate = async (obligations: ContractObligation[]) => {
     if (!business?.id || !id) return;
@@ -224,17 +225,19 @@ export default function ContractDetailPage() {
                 View counter-proposal
               </Button>
             )}
-            <a
-              href={contract.fileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 h-8 px-3 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              View original
-            </a>
+            {contract.fileUrl && (
+              <a
+                href={contract.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 h-8 px-3 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                View original
+              </a>
+            )}
             <select
               value={contract.status}
               onChange={(e) => handleStatusChange(e.target.value as Contract["status"])}

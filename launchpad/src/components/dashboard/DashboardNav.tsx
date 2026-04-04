@@ -42,6 +42,7 @@ export function DashboardNav({ business }: Props) {
             { href: "/dashboard/protection", label: "Protection" },
             { href: "/dashboard/compliance", label: "Compliance" },
             { href: "/dashboard/finances", label: "Finances" },
+            { href: "/dashboard/taxes", label: "Taxes" },
             { href: "/dashboard/growth", label: "Growth" },
             { href: "/contracts", label: "Contracts" },
           ].map((link) => (

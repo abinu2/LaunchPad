@@ -1,6 +1,7 @@
 import type { Quote } from "@/types/quote";
 import type { Receipt } from "@/types/financial";
 import type { BusinessProfile } from "@/types/business";
+import { summarizeFinances } from "@/lib/finance";
 
 interface Props {
   quotes: Quote[];
@@ -8,25 +9,13 @@ interface Props {
   business?: BusinessProfile;
 }
 
-function getCurrentMonthStats(quotes: Quote[], receipts: Receipt[]) {
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-
-  const revenue = quotes
-    .filter((q) => q.status === "paid" && q.paidAt && q.paidAt.slice(0, 10) >= monthStart)
-    .reduce((sum, q) => sum + q.total, 0);
-
-  const expenses = receipts
-    .filter((r) => r.date >= monthStart)
-    .reduce((sum, r) => sum + (r.deductibleAmount ?? r.amount), 0);
-
-  const profit = revenue - expenses;
-  const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0;
-  return { revenue, expenses, profit, margin };
-}
-
 export function FinancesQuadrant({ quotes, receipts, business }: Props) {
-  const { revenue, expenses, profit, margin } = getCurrentMonthStats(quotes, receipts);
+  const summary = summarizeFinances(quotes, receipts);
+  const currentMonth = summary.monthlyData[summary.monthlyData.length - 1];
+  const revenue = currentMonth?.revenue ?? 0;
+  const expenses = currentMonth?.expenses ?? 0;
+  const profit = currentMonth?.profit ?? 0;
+  const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0;
   const monthName = new Date().toLocaleString("default", { month: "long" });
   const cashBalance = business?.financials?.currentCashBalance;
   const hasData = revenue > 0 || expenses > 0;
@@ -44,7 +33,7 @@ export function FinancesQuadrant({ quotes, receipts, business }: Props) {
           <p className="text-sm text-slate-500">
             {cashBalance !== null && cashBalance !== undefined
               ? "current cash balance"
-              : `${monthName} profit${hasData ? ` (${margin}% margin)` : ""}`}
+              : `${monthName} operating profit${hasData ? ` (${margin}% margin)` : ""}`}
           </p>
         </div>
         <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -57,11 +46,11 @@ export function FinancesQuadrant({ quotes, receipts, business }: Props) {
       {hasData ? (
         <div className="space-y-2 mb-3">
           <div className="flex justify-between text-sm">
-            <span className="text-slate-500">Revenue</span>
+            <span className="text-slate-500">Collected revenue</span>
             <span className="font-medium text-slate-900">${revenue.toLocaleString()}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-slate-500">Expenses</span>
+            <span className="text-slate-500">Deductible expenses</span>
             <span className="font-medium text-slate-900">${expenses.toLocaleString()}</span>
           </div>
           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">

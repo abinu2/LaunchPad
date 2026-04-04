@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { uploadBlob } from "@/lib/azure-storage";
+import { put } from "@vercel/blob";
 
 const ALLOWED_TYPES = new Set([
   "application/pdf",
@@ -29,16 +29,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "File exceeds 20 MB limit" }, { status: 413 });
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const blobName = `businesses/${businessId}/${folder}/${Date.now()}_${safeName}`;
+    const blobPath = `businesses/${businessId}/${folder}/${Date.now()}_${safeName}`;
 
-    const url = await uploadBlob("launchpad-files", blobName, buffer, file.type);
+    const { url } = await put(blobPath, file, {
+      access: "public",
+      contentType: file.type,
+    });
 
-    return NextResponse.json({ url, path: blobName, name: file.name, mimeType: file.type });
+    return NextResponse.json({ url, path: blobPath, name: file.name, mimeType: file.type });
   } catch (err) {
     console.error("upload error:", err);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Upload failed";
+    const isConfig = message.includes("BLOB_READ_WRITE_TOKEN");
+    return NextResponse.json({ error: isConfig ? message : "Upload failed" }, { status: 500 });
   }
 }

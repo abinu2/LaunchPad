@@ -24,7 +24,7 @@ export function serializeBusiness(business: Business) {
     // Cast JSON fields
     businessAddress: business.businessAddress as import("@/types/business").BusinessProfile["businessAddress"],
     operatingJurisdictions: (business.operatingJurisdictions ?? []) as string[],
-    serviceTypes: (business.serviceTypes ?? []) as import("@/types/business").ServiceType[],
+    serviceTypes: (business.serviceTypes ?? []) as unknown as import("@/types/business").ServiceType[],
     completedSteps: (business.completedSteps ?? []) as string[],
     financials: {
       monthlyRevenueAvg: business.monthlyRevenueAvg,
@@ -44,8 +44,8 @@ export function serializeContract(contract: Contract) {
     createdAt: contract.createdAt.toISOString(),
     updatedAt: contract.updatedAt.toISOString(),
     uploadedAt: contract.createdAt.toISOString(),
-    analysis: (contract.analysis ?? {}) as import("@/types/contract").ContractAnalysis,
-    obligations: (contract.obligations ?? []) as import("@/types/contract").ContractObligation[],
+    analysis: (contract.analysis ?? {}) as unknown as import("@/types/contract").ContractAnalysis,
+    obligations: (contract.obligations ?? []) as unknown as import("@/types/contract").ContractObligation[],
   };
 }
 
@@ -70,7 +70,7 @@ export function serializeQuote(quote: Quote) {
     lastFollowUpAt: toIso(quote.lastFollowUpAt),
     nextFollowUpAt: toIso(quote.nextFollowUpAt),
     // Cast JSON fields to their typed equivalents
-    services: (quote.services ?? []) as import("@/types/quote").QuoteLineItem[],
+    services: (quote.services ?? []) as unknown as import("@/types/quote").QuoteLineItem[],
   };
 }
 

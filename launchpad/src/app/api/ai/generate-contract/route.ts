@@ -26,6 +26,25 @@ const CONTRACT_TYPE_LABELS: Record<string, string> = {
   independent_contractor: "Independent Contractor Agreement",
 };
 
+function ensureHtmlDocument(html: string, title: string) {
+  const trimmed = html.trim();
+  if (/<!doctype html/i.test(trimmed) || /<html[\s>]/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${title}</title>
+  </head>
+  <body>
+    ${trimmed}
+  </body>
+</html>`;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { businessId, contractType, clientName, clientEmail, customFields } =
@@ -89,6 +108,12 @@ REQUIREMENTS:
 - Limitation of liability capped at contract value
 - Dispute resolution: mediation before litigation
 - Governing law: ${biz.entityState}
+- Write like a real lawyer-drafted agreement, not a memo or checklist
+- Fill in party names, dates, and defined terms consistently throughout
+- Include commercially realistic details, placeholders only where facts are truly missing
+- If business details imply a service company, tailor scope, damage documentation, change-order, and payment default clauses for that kind of work
+- Make signature blocks look formal and ready for printing
+- Avoid markdown, bullet lists, or explanatory notes outside the contract itself
 
 REQUIRED SECTIONS (include all):
 1. Parties and Definitions
@@ -109,16 +134,24 @@ REQUIRED SECTIONS (include all):
 16. Signature Blocks (both parties, with date lines)
 
 Format as clean HTML with:
+- a full valid HTML document
 - <h1> for the contract title
 - <h2> for section headings
 - <p> for body text
+- <ol> or <ul> only if needed for defined obligations or payment steps
 - <table> for signature blocks
-- Inline styles for print-friendly formatting (font-family: Georgia, serif; line-height: 1.6; max-width: 800px)
+- Inline styles for print-friendly formatting
+- Professional document styling: white page background, Georgia or Times New Roman serif body, centered title, justified body text where appropriate, generous section spacing, borders only where useful
+- Add a short introductory recital block before the numbered sections if appropriate
+- Signature table must include printed names, titles, signature lines, and date lines for both parties
 
 Return ONLY the HTML. No JSON wrapper, no markdown, no explanation.
 `;
 
-    const cleanHtml = await generateText(prompt, LONG_CONTEXT_MODEL);
+    const cleanHtml = ensureHtmlDocument(
+      await generateText(prompt, LONG_CONTEXT_MODEL),
+      `${CONTRACT_TYPE_LABELS[contractType] ?? contractType} - ${clientName}`
+    );
 
     return NextResponse.json({ html: cleanHtml, contractType, clientName });
   } catch (err) {

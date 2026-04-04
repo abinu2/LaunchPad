@@ -285,6 +285,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(serializeContract(contract));
   } catch (err) {
     console.error("analyze-contract error:", err);
-    return NextResponse.json({ error: "Contract analysis failed" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Contract analysis failed";
+    // Surface config errors directly so they're actionable
+    const isConfig = message.includes("API_KEY") || message.includes("CONNECTION_STRING") || message.includes("Unauthorized") || message.includes("Forbidden");
+    return NextResponse.json({ error: isConfig ? message : "Contract analysis failed — please try again" }, { status: 500 });
   }
 }

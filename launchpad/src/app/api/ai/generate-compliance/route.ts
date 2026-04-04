@@ -12,6 +12,8 @@ import { generateJSON } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
+export const maxDuration = 120;
+
 interface ComplianceItemRaw {
   title: string;
   description: string;

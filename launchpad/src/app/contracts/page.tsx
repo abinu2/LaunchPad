@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useBusiness } from "@/context/BusinessContext";
@@ -93,14 +93,20 @@ export default function ContractsPage() {
   const [sortBy, setSortBy] = useState<SortKey>("date");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
 
-  const load = useCallback(async () => {
+  useEffect(() => {
     if (!business?.id) return;
-    const data = await getContracts(business.id);
-    setContracts(data);
-    setLoading(false);
-  }, [business?.id]);
+    let cancelled = false;
 
-  useEffect(() => { load(); }, [load]);
+    void getContracts(business.id).then((data) => {
+      if (cancelled) return;
+      setContracts(data);
+      setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [business]);
 
   const handleUploadComplete = (contractId: string) => {
     setShowUpload(false);
