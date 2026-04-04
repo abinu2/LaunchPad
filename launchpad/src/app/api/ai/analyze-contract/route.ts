@@ -202,13 +202,15 @@ export async function POST(req: NextRequest) {
           messages: [
             {
               role: "system",
-              content: "You are a precise JSON API. Always respond with valid JSON only. No markdown, no explanation.",
+              content: "You are a precise JSON API. Always respond with valid JSON only. No markdown, no explanation, no text outside the JSON object.",
             },
             { role: "user", content: buildPrompt(contractText, bizName) },
           ],
           temperature: 0.1,
           max_tokens: 4096,
-          response_format: { type: "json_object" },
+          // NOTE: Do NOT set response_format: json_object with stream:true —
+          // Groq buffers the entire response before emitting any tokens when
+          // json_object mode is active, which defeats streaming entirely.
         });
 
         for await (const chunk of textStream) {

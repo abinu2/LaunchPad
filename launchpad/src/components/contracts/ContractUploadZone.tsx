@@ -23,48 +23,55 @@ const ACCEPTED = {
 
 // Parse the streaming response from analyze-contract.
 // The server streams raw Groq tokens, then appends a sentinel line:
-//   __CONTRACT__{...serialized contract JSON}
-//   __ERROR__{...error JSON}
+//   \n__CONTRACT__{...serialized contract JSON}
+//   \n__ERROR__{...error JSON}
+// onChunk fires on every received chunk so the caller can update progress.
 async function readAnalysisStream(
   res: Response,
-  onToken: (tokenCount: number) => void
+  onChunk: (totalChars: number) => void
 ): Promise<{ contract?: Record<string, unknown>; error?: string }> {
   const reader = res.body?.getReader();
   if (!reader) throw new Error("No response body");
 
   const decoder = new TextDecoder();
   let buffer = "";
-  let tokenCount = 0;
+  let totalChars = 0;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    buffer += chunk;
-    tokenCount += chunk.length;
-    onToken(tokenCount);
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      buffer += chunk;
+      totalChars += chunk.length;
+      onChunk(totalChars); // fire immediately on each chunk
+    }
+  } finally {
+    reader.releaseLock();
   }
 
-  // Extract sentinel lines from the end of the buffer
-  const contractMatch = buffer.match(/__CONTRACT__(\{[\s\S]*\})$/);
-  if (contractMatch) {
-    return { contract: JSON.parse(contractMatch[1]) };
+  // Extract sentinel from the end of the buffer
+  const contractIdx = buffer.lastIndexOf("\n__CONTRACT__");
+  if (contractIdx !== -1) {
+    try {
+      return { contract: JSON.parse(buffer.slice(contractIdx + "\n__CONTRACT__".length)) };
+    } catch { /* fall through */ }
   }
 
-  const errorMatch = buffer.match(/__ERROR__(\{[\s\S]*\})$/);
-  if (errorMatch) {
-    const parsed = JSON.parse(errorMatch[1]) as { error?: string };
-    return { error: parsed.error ?? "Analysis failed" };
+  const errorIdx = buffer.lastIndexOf("\n__ERROR__");
+  if (errorIdx !== -1) {
+    try {
+      const parsed = JSON.parse(buffer.slice(errorIdx + "\n__ERROR__".length)) as { error?: string };
+      return { error: parsed.error ?? "Analysis failed" };
+    } catch { /* fall through */ }
   }
 
-  // Fallback: try to parse the whole buffer as JSON (old format)
+  // Fallback: try to parse the whole buffer as JSON (error response)
   try {
     const parsed = JSON.parse(buffer.trim()) as Record<string, unknown>;
     if (parsed.error) return { error: String(parsed.error) };
     if (parsed.id) return { contract: parsed };
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
 
   throw new Error("Analysis response was incomplete — please try again");
 }
@@ -169,19 +176,23 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
           throw new Error((err as { error?: string }).error ?? "Analysis failed");
         }
 
-        // Read the stream — each token chunk advances progress toward 92%
-        let lastTokenCount = 0;
+        // Read the stream — each chunk fires onChunk immediately, advancing progress
+        let lastChars = 0;
         let currentTarget = 45;
-        const result = await readAnalysisStream(analyzeRes, (tokenCount) => {
-          const delta = tokenCount - lastTokenCount;
-          lastTokenCount = tokenCount;
+        const result = await readAnalysisStream(analyzeRes, (totalChars) => {
+          const delta = totalChars - lastChars;
+          lastChars = totalChars;
           if (delta > 0) {
-            if (currentTarget < 70) currentTarget = Math.min(70, currentTarget + delta * 0.05);
-            else if (currentTarget < 90) currentTarget = Math.min(90, currentTarget + delta * 0.01);
+            // First ~2KB of tokens: 45→70% (fast visible movement)
+            // Next ~8KB: 70→88% (slowing down)
+            // Beyond: hold at 88% until sentinel arrives
+            if (currentTarget < 70) {
+              currentTarget = Math.min(70, currentTarget + delta * 0.12);
+            } else if (currentTarget < 88) {
+              currentTarget = Math.min(88, currentTarget + delta * 0.02);
+            }
             setTarget(currentTarget);
           }
-
-          // Update status label based on rough progress
           if (currentTarget > 60 && currentTarget < 75) setStatusLabel("Scoring risk and obligations...");
           else if (currentTarget >= 75) setStatusLabel("Finalizing analysis...");
         });
