@@ -7,9 +7,12 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
+import { groqJSON, isGroqConfigured } from "@/lib/groq";
 import { generateJSON } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client/index.js";
+
+export const maxDuration = 10;
 
 interface FundingOpportunityRaw {
   name: string;
@@ -161,11 +164,17 @@ Return a JSON object with this exact structure:
   ]
 }`;
 
-    const result = await generateJSON<{
-      fundingOpportunities: FundingOpportunityRaw[];
-      pricingRecommendations: PricingRecommendation[];
-      expenseSavings: ExpenseSaving[];
-    }>(prompt);
+    const result = isGroqConfigured()
+      ? await groqJSON<{
+          fundingOpportunities: FundingOpportunityRaw[];
+          pricingRecommendations: PricingRecommendation[];
+          expenseSavings: ExpenseSaving[];
+        }>(prompt)
+      : await generateJSON<{
+          fundingOpportunities: FundingOpportunityRaw[];
+          pricingRecommendations: PricingRecommendation[];
+          expenseSavings: ExpenseSaving[];
+        }>(prompt);
 
     // Persist funding opportunities — replace existing discovered ones
     await prisma.fundingOpportunity.deleteMany({

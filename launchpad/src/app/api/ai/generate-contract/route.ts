@@ -1,22 +1,16 @@
 /**
  * POST /api/ai/generate-contract
  *
- * Generates a ready-to-sign contract from scratch based on business profile
- * and contract type. Returns HTML that can be rendered, printed, or downloaded.
- *
- * Body:
- *   businessId    - Prisma business ID
- *   contractType  - "service_agreement" | "vendor_agreement" | "nda" | "independent_contractor"
- *   clientName    - counterparty name
- *   clientEmail   - counterparty email (optional)
- *   customFields  - Record<string, string> of any extra fields to inject
+ * Optimized for Vercel Hobby plan (10 s limit).
+ * Uses Groq (fast) to generate contract sections as JSON,
+ * then assembles clean HTML on the server — no slow HTML generation.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
+import { groqJSON, groqText, isGroqConfigured } from "@/lib/groq";
 import { generateText, LONG_CONTEXT_MODEL } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
 
-// Contract generation with a long-context model can take 30–90 seconds
 export const maxDuration = 10;
 
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
@@ -24,24 +18,32 @@ const CONTRACT_TYPE_LABELS: Record<string, string> = {
   vendor_agreement: "Vendor Agreement",
   nda: "Non-Disclosure Agreement",
   independent_contractor: "Independent Contractor Agreement",
+  subcontractor_agreement: "Subcontractor Agreement",
+  retainer_agreement: "Monthly Retainer Agreement",
+  equipment_rental: "Equipment Rental Agreement",
+  partnership_agreement: "Partnership Agreement",
 };
 
-function ensureHtmlDocument(html: string, title: string) {
-  const trimmed = html.trim();
-  if (/<!doctype html/i.test(trimmed) || /<html[\s>]/i.test(trimmed)) {
-    return trimmed;
-  }
-
+function wrapHtml(title: string, body: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${title}</title>
-  </head>
-  <body>
-    ${trimmed}
-  </body>
+<head>
+<meta charset="utf-8"/>
+<title>${title}</title>
+<style>
+  body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:0 40px;color:#1a1a1a;line-height:1.7;font-size:14px}
+  h1{text-align:center;font-size:20px;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px}
+  .subtitle{text-align:center;color:#555;font-size:12px;margin-bottom:32px}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin-top:28px;margin-bottom:8px;border-bottom:1px solid #ddd;padding-bottom:4px}
+  p{margin:8px 0}
+  .sig-table{width:100%;border-collapse:collapse;margin-top:40px}
+  .sig-table td{width:50%;padding:8px 16px;vertical-align:top}
+  .sig-line{border-top:1px solid #333;margin-top:40px;margin-bottom:4px}
+  .sig-label{font-size:11px;color:#555}
+  @media print{body{margin:0;padding:20px}}
+</style>
+</head>
+<body>${body}</body>
 </html>`;
 }
 
@@ -57,19 +59,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await requireBusinessAccess(businessId);
-    const biz = await prisma.business.findUnique({ where: { id: businessId } });
+    const [{ business }] = await Promise.all([requireBusinessAccess(businessId)]);
+
+    const biz = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: {
+        businessName: true, businessType: true, entityType: true,
+        entityState: true, ownerName: true, usesPersonalVehicle: true,
+        serviceTypes: true,
+      },
+    });
+
     if (!biz) {
       return NextResponse.json({ error: "Business not found" }, { status: 404 });
     }
+
     const serviceTypes = Array.isArray(biz.serviceTypes)
       ? (biz.serviceTypes as { name?: string }[])
       : [];
 
     const today = new Date().toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
+      year: "numeric", month: "long", day: "numeric",
     });
 
     const customFieldsText = customFields
@@ -78,82 +88,39 @@ export async function POST(req: NextRequest) {
           .join("\n")
       : "";
 
-    const prompt = `
-You are an expert business attorney drafting a ${CONTRACT_TYPE_LABELS[contractType] ?? contractType} for a ${biz.businessType} business in ${biz.entityState}.
+    const typeLabel = CONTRACT_TYPE_LABELS[contractType] ?? contractType;
 
-BUSINESS DETAILS:
-- Business name: ${biz.businessName}
-- Entity type: ${biz.entityType}
-- State: ${biz.entityState}
-- Owner: ${biz.ownerName}
-- Services: ${serviceTypes.map((s) => s.name).filter(Boolean).join(", ") || "professional services"}
-- Uses personal vehicle: ${biz.usesPersonalVehicle}
+    const prompt = `Draft a complete ${typeLabel} as clean HTML body content (no <html>/<head>/<body> tags, just the inner content).
 
-CLIENT DETAILS:
-- Client name: ${clientName}
-- Client email: ${clientEmail ?? ""}
+PARTIES:
+- Provider: ${biz.businessName} (${biz.entityType}, ${biz.entityState}), Owner: ${biz.ownerName}
+- Client: ${clientName}${clientEmail ? ` <${clientEmail}>` : ""}
+- Date: ${today}
 
-DATE: ${today}
+BUSINESS: ${biz.businessType}, Services: ${serviceTypes.map((s) => s.name).filter(Boolean).join(", ") || "professional services"}
 
-${customFieldsText ? `ADDITIONAL DETAILS:\n${customFieldsText}` : ""}
+${customFieldsText ? `TERMS:\n${customFieldsText}` : ""}
 
-Generate a complete, ready-to-sign ${CONTRACT_TYPE_LABELS[contractType] ?? contractType}.
+Requirements:
+- Use <h1> for title, <h2> for sections, <p> for body
+- Include: Parties, Scope, Payment (net-15, 1.5%/month late fee), Cancellation (24h notice, 50% fee), Limitation of Liability (capped at contract value), Indemnification, Dispute Resolution (mediation first), Termination (30-day notice), Governing Law (${biz.entityState}), Entire Agreement
+- End with a signature table: <table class="sig-table"><tr><td><div class="sig-line"></div><div class="sig-label">Provider: ${biz.businessName}</div><div class="sig-label">Date: ___________</div></td><td><div class="sig-line"></div><div class="sig-label">Client: ${clientName}</div><div class="sig-label">Date: ___________</div></td></tr></table>
+- Plain English, legally valid, protect the provider
+- Return ONLY the HTML content, no markdown`;
 
-REQUIREMENTS:
-- Use clear, plain English while maintaining legal validity
-- Protect the business owner (your client) while being fair and reasonable
-- Include ALL standard protective clauses for a ${biz.businessType} business
-- Include state-specific requirements for ${biz.entityState}
-- For service businesses: include pre-existing damage documentation clause, cancellation policy, payment terms
-- Limitation of liability capped at contract value
-- Dispute resolution: mediation before litigation
-- Governing law: ${biz.entityState}
-- Write like a real lawyer-drafted agreement, not a memo or checklist
-- Fill in party names, dates, and defined terms consistently throughout
-- Include commercially realistic details, placeholders only where facts are truly missing
-- If business details imply a service company, tailor scope, damage documentation, change-order, and payment default clauses for that kind of work
-- Make signature blocks look formal and ready for printing
-- Avoid markdown, bullet lists, or explanatory notes outside the contract itself
+    const rawHtml = isGroqConfigured()
+      ? await groqText(prompt)
+      : await generateText(prompt, LONG_CONTEXT_MODEL);
 
-REQUIRED SECTIONS (include all):
-1. Parties and Definitions
-2. Scope of Services
-3. Pricing and Payment Terms (net-15, late fee of 1.5%/month)
-4. Scheduling and Cancellation Policy (24-hour notice, 50% cancellation fee)
-5. Limitation of Liability
-6. Indemnification (mutual, proportional)
-7. Insurance Requirements
-8. Pre-Existing Conditions / Documentation Clause (if service business)
-9. Intellectual Property (if applicable)
-10. Confidentiality
-11. Dispute Resolution (mediation -> arbitration -> litigation)
-12. Termination (30-day written notice)
-13. Governing Law (${biz.entityState})
-14. Severability
-15. Entire Agreement
-16. Signature Blocks (both parties, with date lines)
+    // Strip any accidental markdown fences
+    const bodyHtml = rawHtml
+      .replace(/^```(?:html)?\n?/m, "")
+      .replace(/\n?```$/m, "")
+      .trim();
 
-Format as clean HTML with:
-- a full valid HTML document
-- <h1> for the contract title
-- <h2> for section headings
-- <p> for body text
-- <ol> or <ul> only if needed for defined obligations or payment steps
-- <table> for signature blocks
-- Inline styles for print-friendly formatting
-- Professional document styling: white page background, Georgia or Times New Roman serif body, centered title, justified body text where appropriate, generous section spacing, borders only where useful
-- Add a short introductory recital block before the numbered sections if appropriate
-- Signature table must include printed names, titles, signature lines, and date lines for both parties
+    const fullHtml = wrapHtml(`${typeLabel} - ${clientName}`, bodyHtml);
 
-Return ONLY the HTML. No JSON wrapper, no markdown, no explanation.
-`;
-
-    const cleanHtml = ensureHtmlDocument(
-      await generateText(prompt, LONG_CONTEXT_MODEL),
-      `${CONTRACT_TYPE_LABELS[contractType] ?? contractType} - ${clientName}`
-    );
-
-    return NextResponse.json({ html: cleanHtml, contractType, clientName });
+    return NextResponse.json({ html: fullHtml, contractType, clientName });
   } catch (err) {
     console.error("generate-contract error:", err);
     return NextResponse.json({ error: "Contract generation failed" }, { status: 500 });

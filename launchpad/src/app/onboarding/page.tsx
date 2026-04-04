@@ -183,13 +183,12 @@ export default function OnboardingPage() {
     return (
       <LoadingScreen
         title="Building your business plan"
-        subtitle="Gemini is analyzing your answers"
+        subtitle="Analyzing your answers..."
         steps={[
           "Checking entity requirements for your state",
           "Mapping compliance obligations",
           "Identifying licenses and permits",
           "Building your formation checklist",
-          "Drafting your first contract template",
         ]}
       />
     );

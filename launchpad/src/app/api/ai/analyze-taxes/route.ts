@@ -79,17 +79,17 @@ export async function POST(req: NextRequest) {
 
     // Expense summary by category
     const expenseByCategory: Record<string, number> = {};
-    receipts.forEach((r) => {
+    for (const r of receipts) {
       expenseByCategory[r.category] = (expenseByCategory[r.category] ?? 0) + (r.deductibleAmount ?? r.amount);
-    });
+    }
 
     const totalMiles = receipts.reduce(
       (s: number, r: (typeof receipts)[number]) => s + (r.associatedMileage ?? 0),
       0
     );
 
-    // Sample of specific receipts for Gemini to analyze
-    const receiptSample = receipts.slice(0, 50).map((r) => ({
+    // Sample of specific receipts for analysis
+    const receiptSample = receipts.slice(0, 50).map((r: (typeof receipts)[number]) => ({
       vendor: r.vendor,
       amount: r.amount,
       category: r.category,
@@ -102,10 +102,10 @@ export async function POST(req: NextRequest) {
 
     // Top bank transactions (debits)
     const topDebits = bankTxs
-      .filter((t) => t.amount > 0)
-      .sort((a, b) => b.amount - a.amount)
+      .filter((t: (typeof bankTxs)[number]) => t.amount > 0)
+      .sort((a: (typeof bankTxs)[number], b: (typeof bankTxs)[number]) => b.amount - a.amount)
       .slice(0, 30)
-      .map((t) => ({
+      .map((t: (typeof bankTxs)[number]) => ({
         name: t.merchantName ?? t.name,
         amount: t.amount,
         date: t.date,
