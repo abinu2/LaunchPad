@@ -3,12 +3,16 @@
  */
 import { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } from "plaid";
 
+const plaidEnv = (process.env.PLAID_ENV as keyof typeof PlaidEnvironments) || "sandbox";
+const plaidClientId = process.env.PLAID_CLIENT_ID || "placeholder_client_id";
+const plaidSecret = process.env.PLAID_SECRET || "placeholder_secret";
+
 const config = new Configuration({
-  basePath: PlaidEnvironments[process.env.PLAID_ENV as keyof typeof PlaidEnvironments ?? "sandbox"],
+  basePath: PlaidEnvironments[plaidEnv],
   baseOptions: {
     headers: {
-      "PLAID-CLIENT-ID": process.env.PLAID_CLIENT_ID!,
-      "PLAID-SECRET": process.env.PLAID_SECRET!,
+      "PLAID-CLIENT-ID": plaidClientId,
+      "PLAID-SECRET": plaidSecret,
     },
   },
 });

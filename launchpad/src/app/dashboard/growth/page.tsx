@@ -15,12 +15,12 @@ import { AILoadingScreen } from "@/components/ui/LoadingScreen";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import type { FundingOpportunity } from "@/types/compliance";
-
-// Disable static prerendering for this page
-export const dynamic = "force-dynamic";
 import type { Quote } from "@/types/quote";
 import type { Receipt } from "@/types/financial";
 import type { BusinessProfile } from "@/types/business";
+
+// Disable static prerendering for this page
+export const dynamic = "force-dynamic";
 
 // ─── types ────────────────────────────────────────────────────────────────────
 

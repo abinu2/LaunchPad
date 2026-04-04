@@ -8,10 +8,10 @@ import { summarizeBankCash, summarizeFinances } from "@/lib/finance";
 import { getBankTransactions, getPlaidConnections, getQuotes, getReceipts } from "@/services/business-graph";
 import type { PlaidTransaction } from "@/types/plaid";
 import type { Quote } from "@/types/quote";
+import type { Receipt } from "@/types/financial";
 
 // Disable static prerendering for this page
 export const dynamic = "force-dynamic";
-import type { Receipt } from "@/types/financial";
 
 type PlaidConn = {
   itemId: string;
