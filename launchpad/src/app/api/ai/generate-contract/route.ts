@@ -17,7 +17,7 @@ import { generateText, LONG_CONTEXT_MODEL } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
 
 // Contract generation with a long-context model can take 30–90 seconds
-export const maxDuration = 120;
+export const maxDuration = 10;
 
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
   service_agreement: "Service Agreement",

@@ -11,6 +11,7 @@ import { AILoadingScreen } from "@/components/ui/LoadingScreen";
 import { BusinessHealthScore } from "@/components/dashboard/BusinessHealthScore";
 import { RevenuePipeline } from "@/components/dashboard/RevenuePipeline";
 import { TodaysPriorities } from "@/components/dashboard/TodaysPriorities";
+import { GettingStartedChecklist } from "@/components/dashboard/GettingStartedChecklist";
 import { ProtectionQuadrant } from "@/components/dashboard/ProtectionQuadrant";
 import { ComplianceQuadrant } from "@/components/dashboard/ComplianceQuadrant";
 import { FinancesQuadrant } from "@/components/dashboard/FinancesQuadrant";
@@ -82,6 +83,9 @@ export default function DashboardPage() {
 
       {/* Today's Priorities — cross-feature action list */}
       <TodaysPriorities data={data} business={business} />
+
+      {/* Getting Started Checklist — hides when all tasks are done */}
+      <GettingStartedChecklist data={data} business={business} />
 
       {/* 2×2 Quadrant Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

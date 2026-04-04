@@ -7,6 +7,8 @@ import {
   sanitizeUploadFileName,
 } from "@/lib/blob-upload";
 
+export const maxDuration = 60;
+
 type ClientUploadPayload = {
   businessId?: string;
   folder?: string;
@@ -14,13 +16,9 @@ type ClientUploadPayload = {
 };
 
 function parseClientPayload(rawPayload: string | null): ClientUploadPayload {
-  if (!rawPayload) {
-    return {};
-  }
-
+  if (!rawPayload) return {};
   try {
-    const parsed = JSON.parse(rawPayload) as ClientUploadPayload;
-    return parsed ?? {};
+    return (JSON.parse(rawPayload) as ClientUploadPayload) ?? {};
   } catch {
     return {};
   }
@@ -28,6 +26,9 @@ function parseClientPayload(rawPayload: string | null): ClientUploadPayload {
 
 export async function POST(req: NextRequest) {
   try {
+    // Read the body once and pass it explicitly to handleUpload.
+    // We clone the request so handleUpload can still read headers from it
+    // without hitting a "body already consumed" error.
     const body = (await req.json()) as HandleUploadBody;
 
     const jsonResponse = await handleUpload({
@@ -64,7 +65,8 @@ export async function POST(req: NextRequest) {
         };
       },
       onUploadCompleted: async () => {
-        // The app analyzes the uploaded file immediately after the client upload finishes.
+        // No-op: the app analyzes the file immediately after the client upload finishes.
+        // This callback may not fire in local dev (Vercel can't reach localhost).
       },
     });
 
@@ -76,10 +78,10 @@ export async function POST(req: NextRequest) {
       message.includes("Unauthorized")
         ? 401
         : message.includes("Forbidden")
-        ? 403
-        : message.includes("required") || message.includes("Invalid upload path")
-        ? 400
-        : 500;
+          ? 403
+          : message.includes("required") || message.includes("Invalid upload path")
+            ? 400
+            : 500;
 
     return NextResponse.json(
       { error: message.includes("BLOB_READ_WRITE_TOKEN") ? message : message || "Upload authorization failed" },

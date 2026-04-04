@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import { AILoadingScreen, ContractScanLoader } from "@/components/ui/LoadingScreen";
 import {
@@ -16,8 +16,6 @@ interface Props {
 
 type Stage = "idle" | "uploading" | "analyzing" | "error";
 
-// DOCX is excluded because the analysis pipeline is optimized for PDFs and images.
-// Users should convert DOCX to PDF before uploading.
 const ACCEPTED = {
   "application/pdf": [".pdf"],
   "image/jpeg": [".jpg", ".jpeg"],
@@ -29,93 +27,80 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const analyzeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Simulate smooth progress during the "analyzing" stage since we can't
+  // get real-time progress from a streaming fetch. This prevents the bar
+  // from stalling and gives users confidence something is happening.
+  useEffect(() => {
+    if (stage === "analyzing") {
+      analyzeTimerRef.current = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 92) return prev;
+          // Slow asymptotic curve — accelerates early, slows near 90
+          return prev + (92 - prev) * 0.04;
+        });
+      }, 400);
+    } else if (analyzeTimerRef.current) {
+      clearInterval(analyzeTimerRef.current);
+      analyzeTimerRef.current = null;
+    }
+    return () => {
+      if (analyzeTimerRef.current) clearInterval(analyzeTimerRef.current);
+    };
+  }, [stage]);
 
   const processFile = useCallback(
     async (file: File) => {
       setError(null);
       setStage("uploading");
-      setProgress(10);
+      setProgress(5);
 
       const isImage = file.type.startsWith("image/");
       const isPdf = file.type === "application/pdf";
-      const sendBase64 = isImage && file.size < 3 * 1024 * 1024;
       const fileType = isPdf ? "pdf" : isImage ? "image" : "pdf";
 
       try {
-        if (sendBase64) {
-          const fileBase64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve((reader.result as string).split(",")[1] ?? "");
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
+        // Step 1: Upload to Vercel Blob for storage
+        // The file goes directly from the browser to Vercel Blob (no serverless
+        // function body limit). The analyze route will download from the Blob URL
+        // on the server side — this avoids Vercel's 4.5 MB request body limit
+        // that was causing failures when sending fileBase64 inline.
+        setProgress(12);
+        const uploadedBlob = await uploadDocumentFromBrowser({
+          file,
+          businessId,
+          folder: "contracts",
+          onProgress: (pct) => {
+            // Upload maps to 12–38% of total progress
+            setProgress(Math.max(12, Math.min(38, 12 + Math.round(pct * 0.26))));
+          },
+        });
+        setProgress(40);
 
-          const uploadedBlob = await uploadDocumentFromBrowser({
-            file,
+        // Step 2: Analyze — the simulated progress effect takes over here
+        setStage("analyzing");
+
+        const analyzeRes = await fetch("/api/ai/analyze-contract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType,
+            fileMimeType: uploadedBlob.contentType ?? file.type,
+            fileUrl: uploadedBlob.url,
             businessId,
-            folder: "contracts",
-            onProgress: (percentage) => {
-              setProgress(Math.max(10, Math.min(35, Math.round(percentage * 0.35))));
-            },
-          });
+          }),
+        });
 
-          setProgress(40);
-          setStage("analyzing");
-
-          const analyzeRes = await fetch("/api/ai/analyze-contract", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fileBase64,
-              fileUrl: uploadedBlob.url,
-              fileName: file.name,
-              fileType,
-              fileMimeType: file.type,
-              businessId,
-            }),
-          });
-
-          if (!analyzeRes.ok) {
-            const err = await analyzeRes.json();
-            throw new Error(err.error ?? "Analysis failed");
-          }
-
-          const contract = await analyzeRes.json();
-          setProgress(100);
-          onComplete(contract.id);
-        } else {
-          const uploadedBlob = await uploadDocumentFromBrowser({
-            file,
-            businessId,
-            folder: "contracts",
-            onProgress: (percentage) => {
-              setProgress(Math.max(10, Math.min(35, Math.round(percentage * 0.35))));
-            },
-          });
-          setProgress(40);
-          setStage("analyzing");
-
-          const analyzeRes = await fetch("/api/ai/analyze-contract", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fileUrl: uploadedBlob.url,
-              fileName: file.name,
-              fileType,
-              fileMimeType: uploadedBlob.contentType ?? file.type,
-              businessId,
-            }),
-          });
-
-          if (!analyzeRes.ok) {
-            const err = await analyzeRes.json();
-            throw new Error(err.error ?? "Analysis failed");
-          }
-
-          const contract = await analyzeRes.json();
-          setProgress(100);
-          onComplete(contract.id);
+        if (!analyzeRes.ok) {
+          const err = await analyzeRes.json().catch(() => ({ error: `Analysis failed (HTTP ${analyzeRes.status})` }));
+          throw new Error(err.error ?? "Analysis failed");
         }
+
+        const contract = await analyzeRes.json();
+        setProgress(100);
+        onComplete(contract.id);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong");
         setStage("error");
@@ -155,7 +140,7 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
         ) : (
           <AILoadingScreen
             title="Uploading contract"
-            steps={["Securing file transfer", "Uploading to Vercel Blob", "Preparing for analysis"]}
+            steps={["Securing file transfer", "Uploading document", "Preparing for analysis"]}
             progress={progress}
             variant="inline"
           />
@@ -183,8 +168,14 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
           </div>
 
           {error && (
-            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-              {error}
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-start justify-between">
+              <span>{error}</span>
+              <button
+                onClick={() => { setError(null); setStage("idle"); setProgress(0); }}
+                className="text-red-500 hover:text-red-700 text-xs font-medium ml-3 flex-shrink-0"
+              >
+                Try again
+              </button>
             </div>
           )}
 

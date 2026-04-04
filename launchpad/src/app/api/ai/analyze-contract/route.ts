@@ -1,12 +1,11 @@
 /**
  * POST /api/ai/analyze-contract
  *
- * Fast path (preferred): client sends { fileBase64, fileMimeType, ... }
- *   PDFs  → pdf-parse (no AI for extraction) + Groq text analysis (~3–5s)
- *   Images → Groq vision does OCR + analysis in ONE call (~2–4s)
+ * Optimized for Vercel Hobby plan (10 s function limit).
+ * All independent I/O is parallelized. Prompts are lean.
  *
- * Fallback: client sends { fileUrl, fileMimeType, ... }
- *   → API downloads from Vercel Blob, then same paths as above
+ * PDFs  → pdf-parse + Groq text  (~4-7 s total)
+ * Images → Groq vision one-shot  (~3-5 s total)
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
@@ -19,73 +18,65 @@ import {
   normalizeDocumentMimeType,
 } from "@/lib/document-ai";
 import { fetchWithRetry } from "@/lib/fetch-file";
-import { prisma } from "@/lib/prisma";
 import { serializeContract } from "@/lib/serializers";
 import type { Contract, ContractAnalysis, ContractObligation } from "@/types/contract";
-import { LONG_CONTEXT_MODEL } from "@/lib/vertex-ai";
+import { prisma } from "@/lib/prisma";
 
-export const maxDuration = 120;
+export const maxDuration = 10;
+const MAX_CONTRACT_ANALYSIS_CHARS = 40_000;
 
-const CONTRACT_JSON_SCHEMA = `{
-  "summary": "2-3 sentence plain English summary",
-  "contractType": "service_agreement|vendor_agreement|lease|partnership|employment|financing|other",
-  "counterpartyName": "Name of the other party",
-  "effectiveDate": "YYYY-MM-DD or null",
-  "expirationDate": "YYYY-MM-DD or null",
-  "autoRenews": true or false,
-  "autoRenewalDate": "YYYY-MM-DD or null",
-  "autoRenewalNoticePeriod": number or null,
-  "terminationNoticePeriod": number or null,
-  "totalValue": number or null,
-  "monthlyValue": number or null,
-  "healthScore": number 0-100,
-  "riskLevel": "low|medium|high|critical",
-  "clauses": [{"clauseNumber":"","clauseTitle":"","originalText":"","plainEnglish":"","riskLevel":"safe|caution|danger","issue":null,"recommendation":null,"businessImpact":null,"playbookClause":null}],
-  "missingProtections": ["string"],
-  "conflicts": [],
-  "recommendations": ["string"],
-  "estimatedAnnualCost": number or null,
-  "counterProposalDraft": "string or null",
-  "playbookDeviations": [{"clauseTitle":"","currentLanguage":"","playbookLanguage":"","reason":""}],
-  "obligations": [{"clauseRef":"","description":"","party":"business|counterparty","triggerType":"date|event|threshold|recurring","triggerDescription":"","dueDate":null,"recurringFrequency":null,"status":"pending","monitoredField":null,"monitoredThreshold":null,"notes":null}]
+/* ── Lean JSON schema — only fields the app actually uses ──────────────────── */
+const CONTRACT_SCHEMA = `{
+  "summary":"2-3 sentence plain English summary",
+  "contractType":"service_agreement|vendor_agreement|lease|partnership|employment|financing|other",
+  "counterpartyName":"string",
+  "effectiveDate":"YYYY-MM-DD or null",
+  "expirationDate":"YYYY-MM-DD or null",
+  "autoRenews":boolean,
+  "autoRenewalDate":"YYYY-MM-DD or null",
+  "autoRenewalNoticePeriod":number|null,
+  "terminationNoticePeriod":number|null,
+  "totalValue":number|null,
+  "monthlyValue":number|null,
+  "healthScore":0-100,
+  "riskLevel":"low|medium|high|critical",
+  "clauses":[{"clauseTitle":"","plainEnglish":"","riskLevel":"safe|caution|danger","issue":null,"recommendation":null}],
+  "missingProtections":["string"],
+  "recommendations":["string"],
+  "estimatedAnnualCost":number|null,
+  "obligations":[{"description":"","party":"business|counterparty","triggerType":"date|event|recurring","dueDate":null,"recurringFrequency":null,"status":"pending"}]
 }`;
 
-function buildTextPrompt(contractText: string, businessContext: string, existingSummaries: string): string {
-  return `You are an expert business attorney reviewing a contract for a small business owner. Explain everything in plain English while being legally precise.
-
-${businessContext}
-
-EXISTING CONTRACTS (for conflict detection):
-${existingSummaries || "None."}
+function buildPrompt(contractText: string, bizName: string): string {
+  return `You are a business attorney. Analyze this contract for a small business owner named "${bizName}". Be concise.
 
 CONTRACT TEXT:
 ${contractText}
 
-Return ONLY a JSON object matching this exact schema. No markdown, no explanation:
-${CONTRACT_JSON_SCHEMA}
+Return ONLY valid JSON matching this schema (no markdown):
+${CONTRACT_SCHEMA}
 
-RULES:
-- healthScore: 90-100=clean, 70-89=minor issues, 50-69=significant concerns, <50=major problems
-- Flag personal guarantees, non-competes, one-sided indemnification, auto-renewals
-- counterProposalDraft: professional legal language the owner can send to the counterparty
-- conflicts: [] (leave empty unless you see a direct conflict with the existing contracts listed above)`;
+Score: 90-100=clean, 70-89=minor, 50-69=significant, <50=major. Flag personal guarantees, non-competes, auto-renewals, one-sided indemnification.`;
 }
 
-function buildVisionPrompt(businessContext: string, existingSummaries: string): string {
-  return `You are an expert business attorney. Read every visible word of this contract document and analyze it for a small business owner.
+function limitContractText(text: string) {
+  if (text.length <= MAX_CONTRACT_ANALYSIS_CHARS) {
+    return text;
+  }
 
-${businessContext}
+  return (
+    text.slice(0, MAX_CONTRACT_ANALYSIS_CHARS) +
+    "\n\n[Document truncated for fast analysis. Focus on the visible content above.]"
+  );
+}
 
-EXISTING CONTRACTS:
-${existingSummaries || "None."}
+function buildVisionPrompt(bizName: string): string {
+  return `You are a business attorney. Read this contract image and analyze it for "${bizName}".
 
-Return ONLY a JSON object matching this exact schema. No markdown:
-${CONTRACT_JSON_SCHEMA}
+Return ONLY valid JSON (no markdown):
+${CONTRACT_SCHEMA}
 
-RULES:
-- healthScore: 90-100=clean, 70-89=minor issues, 50-69=significant, <50=major problems
-- Flag personal guarantees, non-competes, one-sided indemnification, auto-renewals
-- counterProposalDraft: legal language the owner can send back`;
+Score: 90-100=clean, 70-89=minor, 50-69=significant, <50=major. Flag personal guarantees, non-competes, auto-renewals.`;
 }
 
 type ContractAIResult = {
@@ -104,12 +95,13 @@ type ContractAIResult = {
   riskLevel: ContractAnalysis["riskLevel"];
   clauses: ContractAnalysis["clauses"];
   missingProtections: string[];
-  conflicts: ContractAnalysis["conflicts"];
   recommendations: string[];
   estimatedAnnualCost: number | null;
-  counterProposalDraft: string | null;
-  playbookDeviations: ContractAnalysis["playbookDeviations"];
   obligations: Omit<ContractObligation, "id" | "lastChecked">[];
+  // Optional fields the AI may or may not return
+  conflicts?: ContractAnalysis["conflicts"];
+  counterProposalDraft?: string | null;
+  playbookDeviations?: ContractAnalysis["playbookDeviations"];
 };
 
 export async function POST(req: NextRequest) {
@@ -144,82 +136,47 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await requireBusinessAccess(businessId);
-
-    // ── Resolve file buffer ───────────────────────────────────────────────────
-    let fileBuffer: Buffer;
-    if (fileBase64) {
-      fileBuffer = Buffer.from(fileBase64, "base64");
-    } else {
-      const fileRes = await fetchWithRetry(fileUrl!);
-      fileBuffer = Buffer.from(await fileRes.arrayBuffer());
-    }
-
-    // ── Business context & existing contracts ─────────────────────────────────
-    const [biz, existingContracts] = await Promise.all([
-      prisma.business.findUnique({ where: { id: businessId } }),
-      prisma.contract.findMany({
-        where: { businessId, status: { in: ["active", "expiring_soon"] } },
-      }),
+    // ── Parallelize: auth + file download + business name lookup ───────────────
+    const [{ business }, fileBuffer] = await Promise.all([
+      requireBusinessAccess(businessId),
+      fileBase64
+        ? Promise.resolve(Buffer.from(fileBase64, "base64"))
+        : fetchWithRetry(fileUrl!).then((r) => r.arrayBuffer()).then((ab) => Buffer.from(ab)),
     ]);
 
-    const serviceTypes =
-      biz && Array.isArray(biz.serviceTypes) ? (biz.serviceTypes as { name?: string }[]) : [];
-
-    const businessContext = biz
-      ? `BUSINESS CONTEXT:
-- Business: ${biz.businessName} (${biz.businessType})
-- Entity: ${biz.entityType} in ${biz.entityState}
-- Owner: ${biz.ownerName}
-- Monthly revenue: $${biz.monthlyRevenueAvg ?? 0}
-- Services: ${serviceTypes.map((s) => s.name).filter(Boolean).join(", ") || "n/a"}
-- Has employees: ${biz.hasEmployees}`
-      : "BUSINESS CONTEXT: Not available.";
-
-    const existingSummaries = existingContracts
-      .map((c: { id: string; counterpartyName: string; contractType: string; analysis: unknown }) => {
-        const analysis = (c.analysis ?? {}) as { summary?: string };
-        return `ID: ${c.id} | ${c.counterpartyName} (${c.contractType}) | ${analysis.summary ?? "N/A"}`;
-      })
-      .join("\n");
+    const bizName = business.businessName ?? "the business owner";
 
     // ── AI analysis ───────────────────────────────────────────────────────────
     let ai: ContractAIResult;
 
     if (isImageMimeType(normalizedMime)) {
-      // Image contract: Groq vision does OCR + analysis in one shot
       const visionResult = await analyzeImageWithGroqVision<ContractAIResult>(
-        buildVisionPrompt(businessContext, existingSummaries),
+        buildVisionPrompt(bizName),
         fileBuffer,
         normalizedMime
       );
-
       if (visionResult) {
         ai = visionResult;
       } else {
-        // Groq vision not configured: extract text via Gemini OCR then analyze
         const contractText = await extractDocumentText(fileBuffer, normalizedMime, {
           minCharacters: 50,
           preferOcr: true,
         });
         ai = await generatePreferredJSON<ContractAIResult>(
-          buildTextPrompt(contractText, businessContext, existingSummaries),
-          { geminiModel: LONG_CONTEXT_MODEL }
+          buildPrompt(limitContractText(contractText), bizName)
         );
       }
     } else {
-      // PDF: extract text with pdf-parse, send to Groq text model
       const contractText = await extractDocumentText(fileBuffer, normalizedMime, {
         minCharacters: 50,
         preferOcr: false,
       });
       ai = await generatePreferredJSON<ContractAIResult>(
-        buildTextPrompt(contractText, businessContext, existingSummaries),
-        { geminiModel: LONG_CONTEXT_MODEL }
+        buildPrompt(limitContractText(contractText), bizName)
       );
     }
 
-    // ── Persist to database ───────────────────────────────────────────────────
+    // ── Persist ───────────────────────────────────────────────────────────────
     const now = new Date();
     let status: Contract["status"] = "active";
     if (ai.expirationDate) {
@@ -228,11 +185,31 @@ export async function POST(req: NextRequest) {
       else if (days <= 30) status = "expiring_soon";
     }
 
-    const obligations: ContractObligation[] = (ai.obligations ?? []).map((obligation, index) => ({
-      ...obligation,
-      id: `obl_${Date.now()}_${index}`,
-      lastChecked: new Date().toISOString(),
+    const obligations: ContractObligation[] = (ai.obligations ?? []).map((o, i) => ({
+      ...o,
+      clauseRef: "",
+      triggerDescription: "",
+      monitoredField: null,
+      monitoredThreshold: null,
+      notes: null,
+      id: `obl_${Date.now()}_${i}`,
+      lastChecked: now.toISOString(),
     }));
+
+    const analysisPayload = JSON.parse(
+      JSON.stringify({
+        summary: ai.summary,
+        riskLevel: ai.riskLevel,
+        clauses: ai.clauses ?? [],
+        missingProtections: ai.missingProtections ?? [],
+        conflicts: ai.conflicts ?? [],
+        recommendations: ai.recommendations ?? [],
+        estimatedAnnualCost: ai.estimatedAnnualCost,
+        counterProposalDraft: ai.counterProposalDraft ?? null,
+        playbookDeviations: ai.playbookDeviations ?? [],
+      })
+    );
+    const obligationsPayload = JSON.parse(JSON.stringify(obligations));
 
     const contract = await prisma.contract.create({
       data: {
@@ -252,20 +229,8 @@ export async function POST(req: NextRequest) {
         monthlyValue: ai.monthlyValue ?? null,
         healthScore: ai.healthScore ?? 75,
         status,
-        analysis: JSON.parse(
-          JSON.stringify({
-            summary: ai.summary,
-            riskLevel: ai.riskLevel,
-            clauses: ai.clauses ?? [],
-            missingProtections: ai.missingProtections ?? [],
-            conflicts: ai.conflicts ?? [],
-            recommendations: ai.recommendations ?? [],
-            estimatedAnnualCost: ai.estimatedAnnualCost,
-            counterProposalDraft: ai.counterProposalDraft,
-            playbookDeviations: ai.playbookDeviations ?? [],
-          })
-        ),
-        obligations: JSON.parse(JSON.stringify(obligations)),
+        analysis: analysisPayload,
+        obligations: obligationsPayload,
       },
     });
 

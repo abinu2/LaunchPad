@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { PlaidConnectButton } from "@/components/plaid/PlaidConnectButton";
 import type { OnboardingResult } from "@/types/onboarding";
 
 interface Props {
   result: OnboardingResult;
-  onSave: () => Promise<void>;
+  onSave: (businessId?: string) => Promise<void>;
+  businessId?: string;
 }
 
 const riskColor = {
@@ -15,9 +17,10 @@ const riskColor = {
   high: "bg-red-100 text-red-700",
 };
 
-export function OnboardingResults({ result, onSave }: Props) {
+export function OnboardingResults({ result, onSave, businessId }: Props) {
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState<string | null>("entity");
+  const [bankConnected, setBankConnected] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
@@ -198,6 +201,45 @@ export function OnboardingResults({ result, onSave }: Props) {
             </ul>
           </div>
         )}
+
+        {/* Bank connection — optional, non-coercive */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-slate-900 text-sm">Connect your bank for deeper insights</p>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Linking your bank lets us automatically track income and expenses, spot tax deductions you might miss,
+                and give you real-time cash flow visibility. Your data stays private and encrypted.
+              </p>
+              {bankConnected ? (
+                <div className="mt-3 flex items-center gap-2 text-sm text-green-600">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Bank connected — you&apos;re all set
+                </div>
+              ) : businessId ? (
+                <div className="mt-3 flex items-center gap-3">
+                  <PlaidConnectButton
+                    businessId={businessId}
+                    onSuccess={() => setBankConnected(true)}
+                    className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
+                  >
+                    Link bank account
+                  </PlaidConnectButton>
+                  <span className="text-xs text-slate-400">Optional — you can do this later from your dashboard</span>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-slate-400">You can connect your bank from the dashboard after saving your plan.</p>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* CTA */}
         <div className="pt-2 pb-8">

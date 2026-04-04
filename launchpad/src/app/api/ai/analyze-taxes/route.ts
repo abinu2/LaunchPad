@@ -11,10 +11,11 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
+import { groqJSON, isGroqConfigured } from "@/lib/groq";
 import { generateJSON, DEFAULT_MODEL } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
 
-export const maxDuration = 120;
+export const maxDuration = 10;
 
 export interface MissedDeduction {
   title: string;
@@ -194,7 +195,9 @@ Tax rate assumptions: Combined self-employment + federal effective rate of ~30% 
 Return ONLY the JSON. No explanation, no markdown.
 `;
 
-    const result = await generateJSON<TaxAIResult>(prompt, DEFAULT_MODEL);
+    const result = isGroqConfigured()
+      ? await groqJSON<TaxAIResult>(prompt)
+      : await generateJSON<TaxAIResult>(prompt, DEFAULT_MODEL);
 
     return NextResponse.json(result);
   } catch (err) {

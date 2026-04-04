@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useBusiness } from "@/context/BusinessContext";
 import { getReceipts, addReceipt } from "@/services/business-graph";
-import { AILoadingScreen, LoadingScreen } from "@/components/ui/LoadingScreen";
+import { ReceiptScanLoader, LoadingScreen } from "@/components/ui/LoadingScreen";
 import { SiteNav } from "@/components/ui/SiteNav";
 import type { Receipt, ExpenseCategory } from "@/types/financial";
 import {
@@ -60,52 +60,56 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [scanned, setScanned] = useState<Partial<Receipt> | null>(null);
+  const analyzeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Simulated asymptotic progress during "analyzing" — prevents 35% stall
+  useEffect(() => {
+    if (stage === "analyzing") {
+      analyzeTimerRef.current = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 92) return prev;
+          return prev + (92 - prev) * 0.05;
+        });
+      }, 350);
+    } else if (analyzeTimerRef.current) {
+      clearInterval(analyzeTimerRef.current);
+      analyzeTimerRef.current = null;
+    }
+    return () => { if (analyzeTimerRef.current) clearInterval(analyzeTimerRef.current); };
+  }, [stage]);
 
   const processFile = useCallback(async (file: File) => {
     setError(null);
     setStage("uploading");
-    setProgress(10);
+    setProgress(5);
 
     try {
-      const isImage = file.type.startsWith("image/");
-      const sendBase64 = isImage && file.size < 3 * 1024 * 1024;
-      const fileBase64 = sendBase64
-        ? await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const result = reader.result as string;
-              resolve(result.split(",")[1] ?? "");
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          })
-        : undefined;
-
+      // Upload directly to Vercel Blob (bypasses 4.5 MB serverless body limit).
+      // The analyze route downloads from the Blob URL on the server side.
+      setProgress(12);
       const uploadedBlob = await uploadDocumentFromBrowser({
         file,
         businessId,
         folder: "receipts",
-        onProgress: (percentage) => {
-          setProgress(Math.max(20, Math.min(40, 20 + Math.round(percentage * 0.2))));
+        onProgress: (pct) => {
+          setProgress(Math.max(12, Math.min(38, 12 + Math.round(pct * 0.26))));
         },
       });
-
-      setProgress(45);
-      setStage("analyzing");
+      setProgress(40);
+      setStage("analyzing"); // timer takes over from here
 
       const analyzeRes = await fetch("/api/ai/analyze-receipt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...(fileBase64 ? { fileBase64 } : {}),
           fileUrl: uploadedBlob.url,
-          fileMimeType: file.type,
+          fileMimeType: uploadedBlob.contentType ?? file.type,
           businessId,
         }),
       });
 
       if (!analyzeRes.ok) {
-        const err = await analyzeRes.json();
+        const err = await analyzeRes.json().catch(() => ({ error: `Analysis failed (HTTP ${analyzeRes.status})` }));
         throw new Error(err.error ?? "Analysis failed");
       }
 
@@ -161,23 +165,7 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
   };
 
   if (stage === "uploading" || stage === "analyzing") {
-    return (
-      <AILoadingScreen
-        title={stage === "uploading" ? "Uploading receipt" : "Reading receipt"}
-        steps={
-          stage === "uploading"
-            ? ["Securing file transfer", "Uploading to storage"]
-            : [
-                "Identifying vendor and amount",
-                "Extracting line items",
-                "Classifying expense category",
-                "Calculating tax deduction",
-              ]
-        }
-        progress={progress}
-        variant="inline"
-      />
-    );
+    return <ReceiptScanLoader stage={stage} progress={progress} />;
   }
 
   if (stage === "done" && scanned) {

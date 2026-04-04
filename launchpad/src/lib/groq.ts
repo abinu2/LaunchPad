@@ -10,6 +10,10 @@ let groqClient: Groq | null = null;
 export const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
 /** Vision model for OCR + analysis of images in one call */
 export const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL ?? "meta-llama/llama-4-scout-17b-16e-instruct";
+const GROQ_JSON_MAX_TOKENS = Number(process.env.GROQ_JSON_MAX_TOKENS ?? "4096");
+const GROQ_VISION_JSON_MAX_TOKENS = Number(process.env.GROQ_VISION_JSON_MAX_TOKENS ?? "3072");
+const GROQ_VISION_TEXT_MAX_TOKENS = Number(process.env.GROQ_VISION_TEXT_MAX_TOKENS ?? "4096");
+const GROQ_TEXT_MAX_TOKENS = Number(process.env.GROQ_TEXT_MAX_TOKENS ?? "2048");
 
 export function isGroqConfigured() {
   return Boolean(process.env.GROQ_API_KEY);
@@ -35,7 +39,7 @@ function cleanJSON(text: string): string {
 /**
  * Generate a JSON response from a text-only prompt.
  * Uses llama-3.3-70b-versatile with json_object mode.
- * max_tokens raised to 32768 to handle large contract analyses.
+ * Keep max_tokens conservative to reduce latency on Vercel hobby plan.
  */
 export async function groqJSON<T>(prompt: string): Promise<T> {
   const client = getGroqClient();
@@ -50,7 +54,7 @@ export async function groqJSON<T>(prompt: string): Promise<T> {
       { role: "user", content: prompt },
     ],
     temperature: 0.1,
-    max_tokens: 32768,
+    max_tokens: GROQ_JSON_MAX_TOKENS,
     response_format: { type: "json_object" },
   });
 
@@ -97,7 +101,7 @@ export async function groqVisionJSON<T>(
       },
     ],
     temperature: 0.1,
-    max_tokens: 16384,
+    max_tokens: GROQ_VISION_JSON_MAX_TOKENS,
   });
 
   const text = completion.choices[0]?.message?.content ?? "";
@@ -140,7 +144,7 @@ export async function groqVisionText(prompt: string, imageBase64: string, mimeTy
       },
     ],
     temperature: 0.1,
-    max_tokens: 8192,
+    max_tokens: GROQ_VISION_TEXT_MAX_TOKENS,
   });
 
   return completion.choices[0]?.message?.content ?? "";
@@ -155,7 +159,7 @@ export async function groqText(prompt: string): Promise<string> {
     model: GROQ_MODEL,
     messages: [{ role: "user", content: prompt }],
     temperature: 0.3,
-    max_tokens: 4096,
+    max_tokens: GROQ_TEXT_MAX_TOKENS,
   });
   return completion.choices[0]?.message?.content ?? "";
 }

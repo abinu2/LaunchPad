@@ -8,10 +8,11 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
+import { groqJSON, isGroqConfigured } from "@/lib/groq";
 import { generateJSON } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
 
-export const maxDuration = 120;
+export const maxDuration = 10;
 
 interface ComplianceItemRaw {
   title: string;
@@ -105,7 +106,9 @@ Return a JSON array of compliance items. Each item must match this exact structu
 
 Return ONLY the JSON array. No explanation, no markdown.`;
 
-    const items = await generateJSON<ComplianceItemRaw[]>(prompt);
+    const items = isGroqConfigured()
+      ? await groqJSON<ComplianceItemRaw[]>(prompt)
+      : await generateJSON<ComplianceItemRaw[]>(prompt);
 
     await prisma.complianceItem.deleteMany({
       where: { businessId, status: "not_started" },

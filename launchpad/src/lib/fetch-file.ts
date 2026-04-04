@@ -6,8 +6,8 @@
 export async function fetchWithRetry(
   url: string,
   options?: RequestInit,
-  retries = 3,
-  delayMs = 250
+  retries = 2,
+  delayMs = 100
 ) {
   let lastError: Error | null = null;
 

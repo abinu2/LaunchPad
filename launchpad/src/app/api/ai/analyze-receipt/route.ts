@@ -1,13 +1,9 @@
 /**
  * POST /api/ai/analyze-receipt
  *
- * Fast path (preferred): client sends { fileBase64, fileMimeType, businessId }
- *   → Groq vision does OCR + analysis in ONE call (~1–2s)
- *
- * Fallback: client sends { fileUrl, fileMimeType, businessId }
- *   → API downloads from blob → extracts text → Groq/Gemini analysis
- *
- * Returns structured receipt JSON without saving — the client saves via addReceipt().
+ * Optimized for Vercel Hobby plan (10 s limit).
+ * Images → Groq vision one-shot (~2-4 s)
+ * PDFs   → pdf-parse + Groq text  (~3-6 s)
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
@@ -17,38 +13,24 @@ import {
   isSupportedDocumentMimeType,
   isImageMimeType,
   normalizeDocumentMimeType,
+  generatePreferredJSON,
 } from "@/lib/document-ai";
-import { generatePreferredJSON } from "@/lib/document-ai";
 import { fetchWithRetry } from "@/lib/fetch-file";
-import { prisma } from "@/lib/prisma";
 
-export const maxDuration = 60;
+export const maxDuration = 10;
 
 const RECEIPT_SCHEMA = `{
-  "vendor": "Business or merchant name",
-  "amount": number,
-  "date": "YYYY-MM-DD",
-  "lineItems": [{"description":"","quantity":number,"unitPrice":number,"totalPrice":number}],
-  "category": "supplies|vehicle_fuel|vehicle_maintenance|insurance|rent|utilities|marketing|equipment|professional_services|meals_entertainment|office_supplies|software|training|other",
-  "taxClassification": "cogs|expense|asset|personal|mixed",
-  "businessPercentage": number 0-100,
-  "deductibleAmount": number,
-  "taxNotes": "Brief tax treatment explanation",
-  "associatedMileage": number or null,
-  "needsMoreInfo": true or false,
-  "pendingQuestion": "string or null"
+  "vendor":"string","amount":number,"date":"YYYY-MM-DD",
+  "lineItems":[{"description":"","quantity":number,"unitPrice":number,"totalPrice":number}],
+  "category":"supplies|vehicle_fuel|vehicle_maintenance|insurance|rent|utilities|marketing|equipment|professional_services|meals_entertainment|office_supplies|software|training|other",
+  "taxClassification":"cogs|expense|asset|personal|mixed",
+  "businessPercentage":0-100,"deductibleAmount":number,
+  "taxNotes":"brief explanation",
+  "associatedMileage":number|null,
+  "needsMoreInfo":boolean,"pendingQuestion":"string|null"
 }`;
 
-const RECEIPT_RULES = `RULES:
-- cogs: direct cost of services (materials, subcontractors)
-- expense: operating expense (supplies, software, meals, professional services)
-- asset: equipment >$2,500 lasting >1 year
-- personal: non-deductible
-- mixed: both business and personal use
-- Gas/fuel → category=vehicle_fuel
-- Restaurant → category=meals_entertainment, businessPercentage=50 (only 50% deductible under IRS rules)
-- Phone/internet → category=utilities, businessPercentage=50–80
-- deductibleAmount = amount × (businessPercentage/100) × deductibility_factor`;
+const RULES = `Gas→vehicle_fuel. Restaurant→meals_entertainment,businessPercentage=50. Phone/internet→utilities,50-80%. deductibleAmount=amount×(businessPercentage/100).`;
 
 type ReceiptResult = {
   vendor: string;
@@ -85,7 +67,6 @@ export async function POST(req: NextRequest) {
     }
 
     const mimeType = normalizeDocumentMimeType(fileMimeType);
-
     if (!isSupportedDocumentMimeType(mimeType)) {
       return NextResponse.json(
         { error: `Unsupported file type: ${fileMimeType}. Use PDF, JPEG, PNG, or WEBP.` },
@@ -93,76 +74,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await requireBusinessAccess(businessId);
+    // Parallelize auth + file download + business lookup
+    const [{ business }, fileBuffer] = await Promise.all([
+      requireBusinessAccess(businessId),
+      fileBase64
+        ? Promise.resolve(Buffer.from(fileBase64, "base64"))
+        : fetchWithRetry(fileUrl!).then((r) => r.arrayBuffer()).then((ab) => Buffer.from(ab)),
+    ]);
 
-    const biz = await prisma.business.findUnique({ where: { id: businessId } });
-    const serviceTypes =
-      biz && Array.isArray(biz.serviceTypes) ? (biz.serviceTypes as { name?: string }[]) : [];
-    const businessContext = biz
-      ? `Business: ${biz.businessName} (${biz.businessType}), Entity: ${biz.entityType}, Services: ${serviceTypes.map((s) => s.name).filter(Boolean).join(", ") || "general"}`
-      : "Business context unavailable";
+    const bizCtx = business ? `${business.businessName} (${business.businessType})` : "small business";
 
-    // ── Resolve file buffer ───────────────────────────────────────────────────
-    let fileBuffer: Buffer;
-    if (fileBase64) {
-      fileBuffer = Buffer.from(fileBase64, "base64");
-    } else {
-      const fileRes = await fetchWithRetry(fileUrl!);
-      fileBuffer = Buffer.from(await fileRes.arrayBuffer());
-    }
-
-    // ── Fast path: Groq vision for images (OCR + analysis in one call) ────────
+    // Image → Groq vision one-shot
     if (isImageMimeType(mimeType)) {
-      const visionPrompt = `You are an expert bookkeeper. Look at this receipt or expense document for a small business.
-
-${businessContext}
-
-Extract all visible information and return ONLY a JSON object matching this schema:
-${RECEIPT_SCHEMA}
-
-${RECEIPT_RULES}`;
-
       const visionResult = await analyzeImageWithGroqVision<ReceiptResult>(
-        visionPrompt,
+        `You are a bookkeeper. Analyze this receipt for ${bizCtx}. Return ONLY JSON:\n${RECEIPT_SCHEMA}\n${RULES}`,
         fileBuffer,
         mimeType
       );
-
-      if (visionResult) {
-        return NextResponse.json(visionResult);
-      }
-      // If Groq vision not configured, fall through to text extraction path
+      if (visionResult) return NextResponse.json(visionResult);
     }
 
-    // ── Text path: extract text then analyze ─────────────────────────────────
-    const receiptText = await extractDocumentText(fileBuffer, mimeType, {
+    // PDF or vision fallback → extract text then analyze
+    const text = await extractDocumentText(fileBuffer, mimeType, {
       minCharacters: 10,
       preferOcr: false,
     });
 
-    const prompt = `You are an expert bookkeeper. Analyze this receipt or expense document for a small business.
-
-${businessContext}
-
-RECEIPT TEXT:
-${receiptText}
-
-Return ONLY a JSON object matching this schema:
-${RECEIPT_SCHEMA}
-
-${RECEIPT_RULES}`;
-
-    const result = await generatePreferredJSON<ReceiptResult>(prompt);
+    const result = await generatePreferredJSON<ReceiptResult>(
+      `You are a bookkeeper. Analyze this receipt for ${bizCtx}.\n\nTEXT:\n${text}\n\nReturn ONLY JSON:\n${RECEIPT_SCHEMA}\n${RULES}`
+    );
 
     return NextResponse.json(result);
   } catch (err) {
     console.error("analyze-receipt error:", err);
     const message = err instanceof Error ? err.message : "Receipt analysis failed";
     const isConfig =
-      message.includes("API_KEY") ||
-      message.includes("BLOB_READ_WRITE_TOKEN") ||
-      message.includes("GROQ_API_KEY") ||
-      message.includes("GEMINI_API_KEY");
+      message.includes("API_KEY") || message.includes("GROQ_API_KEY") || message.includes("GEMINI_API_KEY");
     return NextResponse.json(
       { error: isConfig ? message : "Receipt analysis failed — please try again" },
       { status: 500 }
