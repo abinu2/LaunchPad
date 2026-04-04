@@ -7,6 +7,9 @@ import { AILoadingScreen } from "@/components/ui/LoadingScreen";
 import { Button } from "@/components/ui/Button";
 import type { ComplianceItem } from "@/types/compliance";
 
+// Disable static prerendering for this page
+export const dynamic = "force-dynamic";
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 const statusConfig = {

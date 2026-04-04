@@ -22,6 +22,9 @@ import type { Quote } from "@/types/quote";
 import type { Receipt } from "@/types/financial";
 import type { GrowthAction } from "@/services/business-graph";
 
+// Disable static prerendering for this page
+export const dynamic = "force-dynamic";
+
 export type DashboardData = {
   contracts: Contract[];
   complianceItems: ComplianceItem[];

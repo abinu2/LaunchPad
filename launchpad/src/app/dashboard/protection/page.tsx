@@ -7,6 +7,9 @@ import { getContracts } from "@/services/business-graph";
 import { AILoadingScreen } from "@/components/ui/LoadingScreen";
 import type { Contract } from "@/types/contract";
 
+// Disable static prerendering for this page
+export const dynamic = "force-dynamic";
+
 const riskColors = {
   low: "bg-green-100 text-green-700",
   medium: "bg-yellow-100 text-yellow-700",

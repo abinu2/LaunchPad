@@ -7,6 +7,9 @@ import { AILoadingScreen } from "@/components/ui/LoadingScreen";
 import { Button } from "@/components/ui/Button";
 import type { Receipt } from "@/types/financial";
 
+// Disable static prerendering for this page
+export const dynamic = "force-dynamic";
+
 export default function ReceiptsPage() {
   const { business } = useBusiness();
   const [receipts, setReceipts] = useState<Receipt[]>([]);

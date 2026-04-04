@@ -8,6 +8,9 @@ import {
   getQuotes,
   getReceipts,
   dismissGrowthAction,
+
+// Disable static prerendering for this page
+export const dynamic = "force-dynamic";
   updateFundingOpportunity,
   type GrowthAction,
 } from "@/services/business-graph";

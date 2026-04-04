@@ -9,6 +9,9 @@ import { GenerateContractModal } from "@/components/contracts/GenerateContractMo
 import { SiteNav } from "@/components/ui/SiteNav";
 import type { Quote } from "@/types/quote";
 
+// Disable static prerendering for this page
+export const dynamic = "force-dynamic";
+
 const STATUS_COLORS: Record<string, string> = {
   draft:    "bg-slate-100 text-slate-600",
   sent:     "bg-blue-100 text-blue-700",

@@ -8,6 +8,9 @@ import { getContract, updateContract, updateContractObligations, deleteContract 
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+
+// Disable static prerendering for this page
+export const dynamic = "force-dynamic";
 import { ClauseAccordion } from "@/components/contracts/ClauseAccordion";
 import { ObligationTracker } from "@/components/contracts/ObligationTracker";
 import { CounterProposalModal } from "@/components/contracts/CounterProposalModal";

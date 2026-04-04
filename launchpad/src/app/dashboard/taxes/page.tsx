@@ -9,6 +9,9 @@ import type { Receipt } from "@/types/financial";
 import type { Quote } from "@/types/quote";
 import type { TaxAIResult, MissedDeduction } from "@/app/api/ai/analyze-taxes/route";
 
+// Disable static prerendering for this page
+export const dynamic = "force-dynamic";
+
 // ─── Quarterly tax dates ──────────────────────────────────────────────────────
 
 function getQuarterlyDates(year: number) {

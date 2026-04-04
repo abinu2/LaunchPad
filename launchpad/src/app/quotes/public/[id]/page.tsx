@@ -6,6 +6,9 @@ import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { Button } from "@/components/ui/Button";
 import type { Quote } from "@/types/quote";
 
+// Disable static prerendering for this page
+export const dynamic = "force-dynamic";
+
 export default function PublicQuotePage() {
   const params = useParams();
   const [quote, setQuote] = useState<Quote | null>(null);
