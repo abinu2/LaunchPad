@@ -19,3 +19,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unauthorized" }, { status: 401 });
   }
 }
+
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  try {
+    const { businessId, itemId } = await params;
+    await requireBusinessAccess(businessId);
+    await prisma.complianceItem.deleteMany({ where: { id: itemId, businessId } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unauthorized" }, { status: 401 });
+  }
+}

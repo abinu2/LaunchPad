@@ -51,8 +51,39 @@ export async function POST(req: NextRequest, { params }: Params) {
         pendingQuestion: data.pendingQuestion ?? null,
       },
     });
+    // Recalculate business financials snapshot after new receipt
+    void recalcFinancials(businessId);
     return NextResponse.json({ id: row.id });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unauthorized" }, { status: 401 });
   }
+}
+
+async function recalcFinancials(businessId: string) {
+  try {
+    const [receipts, quotes] = await Promise.all([
+      prisma.receipt.findMany({ where: { businessId } }),
+      prisma.quote.findMany({ where: { businessId } }),
+    ]);
+    const currentYear = new Date().getFullYear().toString();
+    const ytdReceipts = receipts.filter((r) => r.date?.startsWith(currentYear));
+    const ytdPaidQuotes = quotes.filter(
+      (q) => q.status === "paid" && q.paidAt && new Date(q.paidAt).getFullYear() === Number(currentYear)
+    );
+    const totalExpensesYTD = ytdReceipts.reduce((s, r) => s + (r.deductibleAmount ?? r.amount ?? 0), 0);
+    const totalRevenueYTD = ytdPaidQuotes.reduce((s, q) => s + (q.total ?? 0), 0);
+    const profitMargin = totalRevenueYTD > 0 ? (totalRevenueYTD - totalExpensesYTD) / totalRevenueYTD : 0;
+    const monthsWithData = Math.max(new Set(ytdReceipts.map((r) => r.date?.slice(0, 7))).size, 1);
+    await prisma.business.update({
+      where: { id: businessId },
+      data: {
+        totalExpensesYTD,
+        totalRevenueYTD,
+        profitMargin,
+        monthlyExpenseAvg: totalExpensesYTD / monthsWithData,
+        monthlyRevenueAvg: totalRevenueYTD / monthsWithData,
+        financialsUpdatedAt: new Date(),
+      },
+    });
+  } catch { /* non-blocking */ }
 }

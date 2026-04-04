@@ -229,3 +229,32 @@ export async function dismissGrowthAction(businessId: string, actionId: string):
     body: JSON.stringify({ dismissed: true }),
   });
 }
+
+// ─── Missing CRUD operations ──────────────────────────────────────────────────
+
+export async function updateReceipt(businessId: string, receiptId: string, data: Partial<Receipt>): Promise<void> {
+  await api(`/api/data/businesses/${businessId}/receipts/${receiptId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteReceipt(businessId: string, receiptId: string): Promise<void> {
+  await api(`/api/data/businesses/${businessId}/receipts/${receiptId}`, { method: "DELETE" });
+}
+
+export async function deleteQuote(businessId: string, quoteId: string): Promise<void> {
+  await api(`/api/data/businesses/${businessId}/quotes/${quoteId}`, { method: "DELETE" });
+}
+
+export async function deleteComplianceItem(businessId: string, itemId: string): Promise<void> {
+  await api(`/api/data/businesses/${businessId}/compliance/${itemId}`, { method: "DELETE" });
+}
+
+export async function getUploadedFiles(businessId: string): Promise<{
+  id: string; blobUrl: string; fileName: string; fileSize: number;
+  mimeType: string; folder: string; analysisStatus: string;
+  linkedType: string | null; linkedId: string | null; createdAt: string;
+}[]> {
+  return api(`/api/data/businesses/${businessId}/files`);
+}

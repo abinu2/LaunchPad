@@ -1,19 +1,22 @@
 /**
  * POST /api/ai/analyze-contract
  *
- * Uses a streaming response to avoid Vercel Hobby's 10 s function timeout.
- * The client receives a JSON object streamed as a single chunk — the stream
- * keeps the connection alive while Groq processes the document.
+ * Two-phase streaming response:
+ *   Phase 1 — Groq streams JSON tokens to the client as they arrive.
+ *              The client sees real progress instead of a frozen bar.
+ *   Phase 2 — Once the full JSON is assembled, we write the Contract
+ *              record to the DB and flush the final serialized contract.
  *
- * PDFs  → pdf-parse + Groq text  (~4-7 s)
- * Images → Groq vision one-shot  (~3-5 s)
+ * This keeps the Vercel Hobby connection alive well past 10 s and gives
+ * the user visible forward motion throughout the analysis.
+ *
+ * PDFs  → pdf-parse + Groq text stream  (~4-7 s)
+ * Images → Groq vision one-shot + stream (~3-5 s)
  */
 import { NextRequest } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
 import {
-  analyzeImageWithGroqVision,
   extractDocumentText,
-  generatePreferredJSON,
   isSupportedDocumentMimeType,
   isImageMimeType,
   normalizeDocumentMimeType,
@@ -22,14 +25,15 @@ import { fetchWithRetry } from "@/lib/fetch-file";
 import { serializeContract } from "@/lib/serializers";
 import type { Contract, ContractAnalysis, ContractObligation } from "@/types/contract";
 import { prisma } from "@/lib/prisma";
+import Groq from "groq-sdk";
 
-// Edge runtime bypasses the 10 s serverless limit on Hobby plan.
-// pdf-parse uses Node.js APIs so we stay on nodejs runtime but use
-// streaming to keep the connection alive past the wall-clock limit.
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-const MAX_CONTRACT_ANALYSIS_CHARS = 40_000;
+const MAX_CONTRACT_CHARS = 40_000;
+const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
+const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL ?? "meta-llama/llama-4-scout-17b-16e-instruct";
+
 const CONTRACT_SCHEMA = `{
   "summary":"2-3 sentence plain English summary",
   "contractType":"service_agreement|vendor_agreement|lease|partnership|employment|financing|other",
@@ -51,11 +55,11 @@ const CONTRACT_SCHEMA = `{
   "obligations":[{"description":"","party":"business|counterparty","triggerType":"date|event|recurring","dueDate":null,"recurringFrequency":null,"status":"pending"}]
 }`;
 
-function buildPrompt(contractText: string, bizName: string): string {
-  return `You are a business attorney. Analyze this contract for a small business owner named "${bizName}". Be concise.
+function buildPrompt(contractText: string, bizName: string) {
+  return `You are a business attorney. Analyze this contract for "${bizName}". Be concise.
 
 CONTRACT TEXT:
-${contractText}
+${contractText.slice(0, MAX_CONTRACT_CHARS)}${contractText.length > MAX_CONTRACT_CHARS ? "\n\n[Truncated]" : ""}
 
 Return ONLY valid JSON matching this schema (no markdown):
 ${CONTRACT_SCHEMA}
@@ -63,24 +67,17 @@ ${CONTRACT_SCHEMA}
 Score: 90-100=clean, 70-89=minor, 50-69=significant, <50=major. Flag personal guarantees, non-competes, auto-renewals, one-sided indemnification.`;
 }
 
-function limitContractText(text: string) {
-  if (text.length <= MAX_CONTRACT_ANALYSIS_CHARS) {
-    return text;
-  }
-
-  return (
-    text.slice(0, MAX_CONTRACT_ANALYSIS_CHARS) +
-    "\n\n[Document truncated for fast analysis. Focus on the visible content above.]"
-  );
-}
-
-function buildVisionPrompt(bizName: string): string {
+function buildVisionPrompt(bizName: string) {
   return `You are a business attorney. Read this contract image and analyze it for "${bizName}".
 
 Return ONLY valid JSON (no markdown):
 ${CONTRACT_SCHEMA}
 
-Score: 90-100=clean, 70-89=minor, 50-69=significant, <50=major. Flag personal guarantees, non-competes, auto-renewals.`;
+Score: 90-100=clean, 70-89=minor, 50-69=significant, <50=major.`;
+}
+
+function cleanJSON(text: string): string {
+  return text.replace(/^```(?:json)?\n?/m, "").replace(/\n?```$/m, "").trim();
 }
 
 type ContractAIResult = {
@@ -102,27 +99,17 @@ type ContractAIResult = {
   recommendations: string[];
   estimatedAnnualCost: number | null;
   obligations: Omit<ContractObligation, "id" | "lastChecked">[];
-  // Optional fields the AI may or may not return
-  conflicts?: ContractAnalysis["conflicts"];
-  counterProposalDraft?: string | null;
-  playbookDeviations?: ContractAnalysis["playbookDeviations"];
 };
 
 export async function POST(req: NextRequest) {
-  // Use a streaming response so Vercel doesn't kill the connection at 10 s.
-  // The entire JSON is sent as one chunk once processing completes.
-  const stream = new TransformStream();
+  const stream = new TransformStream<Uint8Array, Uint8Array>();
   const writer = stream.writable.getWriter();
-  const encoder = new TextEncoder();
+  const enc = new TextEncoder();
 
-  const respond = async (data: unknown, status = 200) => {
-    const json = JSON.stringify(data);
-    await writer.write(encoder.encode(json));
-    await writer.close();
-    return status;
-  };
+  const send = (data: unknown) => writer.write(enc.encode(JSON.stringify(data)));
+  const close = () => writer.close().catch(() => {});
 
-  const processAsync = async () => {
+  const run = async () => {
     try {
       const body = await req.json() as {
         fileBase64?: string;
@@ -131,14 +118,15 @@ export async function POST(req: NextRequest) {
         fileType?: string;
         fileMimeType?: string;
         businessId?: string;
+        uploadedFileId?: string;
       };
 
-      const { fileBase64, fileUrl, fileName, fileType, businessId } = body;
+      const { fileBase64, fileUrl, fileName, fileType, businessId, uploadedFileId } = body;
       const fileMimeType = body.fileMimeType ?? "";
 
       if (!businessId || (!fileBase64 && !fileUrl)) {
-        await respond({ error: "businessId and either fileBase64 or fileUrl are required" }, 400);
-        return;
+        await send({ error: "businessId and either fileBase64 or fileUrl are required" });
+        return close();
       }
 
       const normalizedMime = normalizeDocumentMimeType(
@@ -146,8 +134,21 @@ export async function POST(req: NextRequest) {
       );
 
       if (!isSupportedDocumentMimeType(normalizedMime)) {
-        await respond({ error: "Unsupported file type. Upload a PDF or image (JPG, PNG, WEBP)." }, 415);
-        return;
+        await send({ error: "Unsupported file type. Upload a PDF or image (JPG, PNG, WEBP)." });
+        return close();
+      }
+
+      if (!process.env.GROQ_API_KEY) {
+        await send({ error: "GROQ_API_KEY is not configured" });
+        return close();
+      }
+
+      // Mark uploaded file as processing
+      if (uploadedFileId) {
+        await prisma.uploadedFile.update({
+          where: { id: uploadedFileId },
+          data: { analysisStatus: "processing" },
+        }).catch(() => {});
       }
 
       const [{ business }, fileBuffer] = await Promise.all([
@@ -158,36 +159,82 @@ export async function POST(req: NextRequest) {
       ]);
 
       const bizName = business.businessName ?? "the business owner";
+      const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-      let ai: ContractAIResult;
+      let fullText = "";
 
+      // ── Stream Groq tokens to the client ──────────────────────────────────
       if (isImageMimeType(normalizedMime)) {
-        const visionResult = await analyzeImageWithGroqVision<ContractAIResult>(
-          buildVisionPrompt(bizName),
-          fileBuffer,
-          normalizedMime
-        );
-        if (visionResult) {
-          ai = visionResult;
-        } else {
-          const contractText = await extractDocumentText(fileBuffer, normalizedMime, {
-            minCharacters: 50,
-            preferOcr: true,
-          });
-          ai = await generatePreferredJSON<ContractAIResult>(
-            buildPrompt(limitContractText(contractText), bizName)
-          );
+        // Vision: one-shot with streaming
+        const base64 = fileBuffer.toString("base64");
+        const visionStream = await groq.chat.completions.create({
+          model: GROQ_VISION_MODEL,
+          stream: true,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "image_url", image_url: { url: `data:${normalizedMime};base64,${base64}` } },
+              { type: "text", text: "IMPORTANT: Respond with valid JSON only. No markdown.\n\n" + buildVisionPrompt(bizName) },
+            ],
+          }],
+          temperature: 0.1,
+          max_tokens: 4096,
+        });
+
+        for await (const chunk of visionStream) {
+          const delta = chunk.choices[0]?.delta?.content ?? "";
+          if (delta) {
+            fullText += delta;
+            // Send progress tokens so the client sees movement
+            await writer.write(enc.encode(delta)).catch(() => {});
+          }
         }
       } else {
+        // Text: extract then stream
         const contractText = await extractDocumentText(fileBuffer, normalizedMime, {
           minCharacters: 50,
           preferOcr: false,
         });
-        ai = await generatePreferredJSON<ContractAIResult>(
-          buildPrompt(limitContractText(contractText), bizName)
-        );
+
+        const textStream = await groq.chat.completions.create({
+          model: GROQ_MODEL,
+          stream: true,
+          messages: [
+            {
+              role: "system",
+              content: "You are a precise JSON API. Always respond with valid JSON only. No markdown, no explanation.",
+            },
+            { role: "user", content: buildPrompt(contractText, bizName) },
+          ],
+          temperature: 0.1,
+          max_tokens: 4096,
+          response_format: { type: "json_object" },
+        });
+
+        for await (const chunk of textStream) {
+          const delta = chunk.choices[0]?.delta?.content ?? "";
+          if (delta) {
+            fullText += delta;
+            await writer.write(enc.encode(delta)).catch(() => {});
+          }
+        }
       }
 
+      // ── Parse the assembled JSON ───────────────────────────────────────────
+      let ai: ContractAIResult;
+      try {
+        ai = JSON.parse(cleanJSON(fullText)) as ContractAIResult;
+      } catch {
+        // Try to extract JSON substring if model added surrounding text
+        const match = fullText.match(/\{[\s\S]*\}/);
+        if (match) {
+          ai = JSON.parse(match[0]) as ContractAIResult;
+        } else {
+          throw new Error("AI returned invalid JSON — please try again");
+        }
+      }
+
+      // ── Persist to DB ──────────────────────────────────────────────────────
       const now = new Date();
       let status: Contract["status"] = "active";
       if (ai.expirationDate) {
@@ -207,17 +254,17 @@ export async function POST(req: NextRequest) {
         lastChecked: now.toISOString(),
       }));
 
-      const analysisPayload = JSON.parse(JSON.stringify({
-        summary: ai.summary,
-        riskLevel: ai.riskLevel,
+      const analysisPayload = {
+        summary: ai.summary ?? "",
+        riskLevel: ai.riskLevel ?? "medium",
         clauses: ai.clauses ?? [],
         missingProtections: ai.missingProtections ?? [],
-        conflicts: ai.conflicts ?? [],
+        conflicts: [],
         recommendations: ai.recommendations ?? [],
-        estimatedAnnualCost: ai.estimatedAnnualCost,
-        counterProposalDraft: ai.counterProposalDraft ?? null,
-        playbookDeviations: ai.playbookDeviations ?? [],
-      }));
+        estimatedAnnualCost: ai.estimatedAnnualCost ?? null,
+        counterProposalDraft: null,
+        playbookDeviations: [],
+      };
 
       const contract = await prisma.contract.create({
         data: {
@@ -237,31 +284,45 @@ export async function POST(req: NextRequest) {
           monthlyValue: ai.monthlyValue ?? null,
           healthScore: ai.healthScore ?? 75,
           status,
-          analysis: analysisPayload,
+          analysis: JSON.parse(JSON.stringify(analysisPayload)),
           obligations: JSON.parse(JSON.stringify(obligations)),
         },
       });
 
-      await respond(serializeContract(contract));
+      // Update uploaded file record to link it to the contract
+      if (uploadedFileId) {
+        await prisma.uploadedFile.update({
+          where: { id: uploadedFileId },
+          data: {
+            analysisStatus: "complete",
+            linkedType: "contract",
+            linkedId: contract.id,
+          },
+        }).catch(() => {});
+      }
+
+      // ── Send the final contract record as a sentinel ───────────────────────
+      // The client reads the stream, buffers all tokens, then on stream-end
+      // parses the last valid JSON object (the contract record).
+      const serialized = serializeContract(contract);
+      await writer.write(enc.encode("\n__CONTRACT__" + JSON.stringify(serialized))).catch(() => {});
+
     } catch (err) {
       console.error("analyze-contract error:", err);
       const message = err instanceof Error ? err.message : "Contract analysis failed";
-      const isConfig =
-        message.includes("API_KEY") ||
-        message.includes("BLOB_READ_WRITE_TOKEN") ||
-        message.includes("GROQ_API_KEY") ||
-        message.includes("GEMINI_API_KEY");
-      await respond(
-        { error: isConfig ? message : "Contract analysis failed — please try again" },
-        500
-      );
+      await writer.write(enc.encode("\n__ERROR__" + JSON.stringify({ error: message }))).catch(() => {});
+    } finally {
+      close();
     }
   };
 
-  // Fire processing without awaiting — the stream keeps the connection alive
-  void processAsync();
+  void run();
 
   return new Response(stream.readable, {
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "no-cache",
+    },
   });
 }

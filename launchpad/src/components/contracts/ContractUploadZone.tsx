@@ -3,9 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import { AILoadingScreen, ContractScanLoader } from "@/components/ui/LoadingScreen";
-import {
-  DOCUMENT_UPLOAD_MAX_BYTES,
-} from "@/lib/blob-upload";
+import { DOCUMENT_UPLOAD_MAX_BYTES } from "@/lib/blob-upload";
 import { uploadDocumentFromBrowser } from "@/lib/upload-document";
 
 interface Props {
@@ -23,63 +21,135 @@ const ACCEPTED = {
   "image/webp": [".webp"],
 };
 
+// Parse the streaming response from analyze-contract.
+// The server streams raw Groq tokens, then appends a sentinel line:
+//   __CONTRACT__{...serialized contract JSON}
+//   __ERROR__{...error JSON}
+async function readAnalysisStream(
+  res: Response,
+  onToken: (tokenCount: number) => void
+): Promise<{ contract?: Record<string, unknown>; error?: string }> {
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("No response body");
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let tokenCount = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    buffer += chunk;
+    tokenCount += chunk.length;
+    onToken(tokenCount);
+  }
+
+  // Extract sentinel lines from the end of the buffer
+  const contractMatch = buffer.match(/__CONTRACT__(\{[\s\S]*\})$/);
+  if (contractMatch) {
+    return { contract: JSON.parse(contractMatch[1]) };
+  }
+
+  const errorMatch = buffer.match(/__ERROR__(\{[\s\S]*\})$/);
+  if (errorMatch) {
+    const parsed = JSON.parse(errorMatch[1]) as { error?: string };
+    return { error: parsed.error ?? "Analysis failed" };
+  }
+
+  // Fallback: try to parse the whole buffer as JSON (old format)
+  try {
+    const parsed = JSON.parse(buffer.trim()) as Record<string, unknown>;
+    if (parsed.error) return { error: String(parsed.error) };
+    if (parsed.id) return { contract: parsed };
+  } catch {
+    // ignore
+  }
+
+  throw new Error("Analysis response was incomplete — please try again");
+}
+
 export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) {
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const analyzeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [statusLabel, setStatusLabel] = useState("Uploading...");
+  const smoothTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const targetProgressRef = useRef(0);
 
-  // Simulate smooth progress during the "analyzing" stage since we can't
-  // get real-time progress from a streaming fetch. This prevents the bar
-  // from stalling and gives users confidence something is happening.
+  // Smooth progress interpolation — moves toward targetProgressRef at a
+  // controlled rate so the bar never jumps or stalls visibly.
   useEffect(() => {
-    if (stage === "analyzing") {
-      analyzeTimerRef.current = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 92) return prev;
-          // Slow asymptotic curve — accelerates early, slows near 90
-          return prev + (92 - prev) * 0.04;
-        });
-      }, 400);
-    } else if (analyzeTimerRef.current) {
-      clearInterval(analyzeTimerRef.current);
-      analyzeTimerRef.current = null;
-    }
+    smoothTimerRef.current = setInterval(() => {
+      setProgress((prev) => {
+        const target = targetProgressRef.current;
+        if (prev >= target) return prev;
+        // Move 8% of the gap per tick (fast early, slows near target)
+        const step = Math.max(0.5, (target - prev) * 0.08);
+        return Math.min(target, prev + step);
+      });
+    }, 120);
     return () => {
-      if (analyzeTimerRef.current) clearInterval(analyzeTimerRef.current);
+      if (smoothTimerRef.current) clearInterval(smoothTimerRef.current);
     };
-  }, [stage]);
+  }, []);
+
+  const setTarget = (pct: number) => {
+    targetProgressRef.current = pct;
+  };
 
   const processFile = useCallback(
     async (file: File) => {
       setError(null);
       setStage("uploading");
-      setProgress(5);
+      setStatusLabel("Uploading document...");
+      setTarget(5);
 
       const isImage = file.type.startsWith("image/");
       const isPdf = file.type === "application/pdf";
       const fileType = isPdf ? "pdf" : isImage ? "image" : "pdf";
 
       try {
-        // Step 1: Upload to Vercel Blob for storage
-        // The file goes directly from the browser to Vercel Blob (no serverless
-        // function body limit). The analyze route will download from the Blob URL
-        // on the server side — this avoids Vercel's 4.5 MB request body limit
-        // that was causing failures when sending fileBase64 inline.
-        setProgress(12);
+        // ── Step 1: Upload to Vercel Blob (0–40%) ─────────────────────────
+        setTarget(10);
         const uploadedBlob = await uploadDocumentFromBrowser({
           file,
           businessId,
           folder: "contracts",
           onProgress: (pct) => {
-            // Upload maps to 12–38% of total progress
-            setProgress(Math.max(12, Math.min(38, 12 + Math.round(pct * 0.26))));
+            // Upload maps to 10–38%
+            setTarget(10 + Math.round(pct * 0.28));
           },
         });
-        setProgress(40);
+        setTarget(40);
 
-        // Step 2: Analyze — the simulated progress effect takes over here
+        // ── Step 2: Register the file in UploadedFile table ───────────────
+        let uploadedFileId: string | undefined;
+        try {
+          const regRes = await fetch(`/api/data/businesses/${businessId}/files`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              blobUrl: uploadedBlob.url,
+              blobPath: uploadedBlob.pathname ?? "",
+              fileName: file.name,
+              fileSize: file.size,
+              mimeType: uploadedBlob.contentType ?? file.type,
+              folder: "contracts",
+            }),
+          });
+          if (regRes.ok) {
+            const reg = await regRes.json() as { id?: string };
+            uploadedFileId = reg.id;
+          }
+        } catch {
+          // Non-blocking — file registration failure shouldn't stop analysis
+        }
+
+        // ── Step 3: Stream analysis (40–95%) ──────────────────────────────
         setStage("analyzing");
+        setStatusLabel("Reading contract clauses...");
+        setTarget(45);
 
         const analyzeRes = await fetch("/api/ai/analyze-contract", {
           method: "POST",
@@ -90,20 +160,44 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
             fileMimeType: uploadedBlob.contentType ?? file.type,
             fileUrl: uploadedBlob.url,
             businessId,
+            uploadedFileId,
           }),
         });
 
         if (!analyzeRes.ok) {
           const err = await analyzeRes.json().catch(() => ({ error: `Analysis failed (HTTP ${analyzeRes.status})` }));
-          throw new Error(err.error ?? "Analysis failed");
+          throw new Error((err as { error?: string }).error ?? "Analysis failed");
         }
 
-        const contract = await analyzeRes.json();
-        setProgress(100);
-        onComplete(contract.id);
+        // Read the stream — each token chunk advances progress toward 92%
+        let lastTokenCount = 0;
+        let currentTarget = 45;
+        const result = await readAnalysisStream(analyzeRes, (tokenCount) => {
+          const delta = tokenCount - lastTokenCount;
+          lastTokenCount = tokenCount;
+          if (delta > 0) {
+            if (currentTarget < 70) currentTarget = Math.min(70, currentTarget + delta * 0.05);
+            else if (currentTarget < 90) currentTarget = Math.min(90, currentTarget + delta * 0.01);
+            setTarget(currentTarget);
+          }
+
+          // Update status label based on rough progress
+          if (currentTarget > 60 && currentTarget < 75) setStatusLabel("Scoring risk and obligations...");
+          else if (currentTarget >= 75) setStatusLabel("Finalizing analysis...");
+        });
+
+        if (result.error) throw new Error(result.error);
+        if (!result.contract?.id) throw new Error("Analysis returned no contract ID");
+
+        setTarget(100);
+        // Small delay so user sees 100% before navigating
+        await new Promise((r) => setTimeout(r, 400));
+        onComplete(result.contract.id as string);
+
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong");
         setStage("error");
+        setTarget(0);
       }
     },
     [businessId, onComplete]
@@ -115,8 +209,7 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
     maxSize: DOCUMENT_UPLOAD_MAX_BYTES,
     onDropAccepted: ([file]) => processFile(file),
     onDropRejected: ([rejection]) => {
-      const msg = rejection.errors[0]?.message ?? "Invalid file";
-      setError(msg);
+      setError(rejection.errors[0]?.message ?? "Invalid file");
     },
     disabled: stage === "uploading" || stage === "analyzing",
   });
@@ -136,7 +229,7 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
 
       {isProcessing ? (
         stage === "analyzing" ? (
-          <ContractScanLoader progress={progress} stage="AI is reading every clause..." />
+          <ContractScanLoader progress={progress} stage={statusLabel} />
         ) : (
           <AILoadingScreen
             title="Uploading contract"
@@ -164,14 +257,14 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
             <p className="text-slate-700 font-medium mb-1">
               {isDragActive ? "Drop it here" : "Drag & drop or click to upload"}
             </p>
-            <p className="text-slate-400 text-sm">PDF or image (JPG, PNG, WEBP) - Max 100 MB</p>
+            <p className="text-slate-400 text-sm">PDF or image (JPG, PNG, WEBP) · Max 100 MB</p>
           </div>
 
           {error && (
             <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-start justify-between">
               <span>{error}</span>
               <button
-                onClick={() => { setError(null); setStage("idle"); setProgress(0); }}
+                onClick={() => { setError(null); setStage("idle"); setTarget(0); }}
                 className="text-red-500 hover:text-red-700 text-xs font-medium ml-3 flex-shrink-0"
               >
                 Try again
@@ -180,7 +273,7 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
           )}
 
           <p className="text-xs text-slate-400 mt-3 text-center">
-            Contract analysis reads extracted text first and only uses OCR when the document needs help yielding readable text.
+            AI reads every clause and flags risks, obligations, and renewal dates.
           </p>
         </>
       )}

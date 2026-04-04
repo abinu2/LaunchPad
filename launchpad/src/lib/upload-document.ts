@@ -14,6 +14,7 @@ type UploadDocumentResult = {
   url: string;
   pathname?: string;
   contentType: string;
+  size?: number;
 };
 
 async function fallbackServerUpload({
@@ -56,6 +57,7 @@ async function fallbackServerUpload({
           url: payload.url,
           pathname: payload.path,
           contentType: payload.mimeType ?? file.type,
+          size: file.size,
         });
       } catch {
         reject(new Error("Upload failed — invalid server response"));
@@ -99,6 +101,7 @@ export async function uploadDocumentFromBrowser(
       url: uploadedBlob.url,
       pathname: uploadedBlob.pathname,
       contentType: uploadedBlob.contentType ?? file.type,
+      size: file.size,
     };
   } catch (primaryError) {
     // Primary Vercel Blob client upload failed — fall back to server upload.

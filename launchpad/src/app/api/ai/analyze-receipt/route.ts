@@ -16,6 +16,7 @@ import {
   generatePreferredJSON,
 } from "@/lib/document-ai";
 import { fetchWithRetry } from "@/lib/fetch-file";
+import { prisma } from "@/lib/prisma";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -55,9 +56,11 @@ export async function POST(req: NextRequest) {
       fileUrl?: string;
       fileMimeType?: string;
       businessId?: string;
+      uploadedFileId?: string;
+      fileName?: string;
     };
 
-    const { fileBase64, fileUrl, businessId } = body;
+    const { fileBase64, fileUrl, businessId, uploadedFileId } = body;
     const fileMimeType = body.fileMimeType ?? "";
 
     if (!businessId || (!fileBase64 && !fileUrl)) {
@@ -92,7 +95,15 @@ export async function POST(req: NextRequest) {
         fileBuffer,
         mimeType
       );
-      if (visionResult) return NextResponse.json(visionResult);
+      if (visionResult) {
+        if (uploadedFileId) {
+          await prisma.uploadedFile.update({
+            where: { id: uploadedFileId },
+            data: { analysisStatus: "complete" },
+          }).catch(() => {});
+        }
+        return NextResponse.json(visionResult);
+      }
     }
 
     // PDF or vision fallback → extract text then analyze
@@ -104,6 +115,13 @@ export async function POST(req: NextRequest) {
     const result = await generatePreferredJSON<ReceiptResult>(
       `You are a bookkeeper. Analyze this receipt for ${bizCtx}.\n\nTEXT:\n${text}\n\nReturn ONLY JSON:\n${RECEIPT_SCHEMA}\n${RULES}`
     );
+
+    if (uploadedFileId) {
+      await prisma.uploadedFile.update({
+        where: { id: uploadedFileId },
+        data: { analysisStatus: "complete" },
+      }).catch(() => {});
+    }
 
     return NextResponse.json(result);
   } catch (err) {
