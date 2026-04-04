@@ -248,6 +248,21 @@ export async function POST(req: NextRequest) {
       lastChecked: new Date().toISOString(),
     }));
 
+    const analysisJson = JSON.parse(
+      JSON.stringify({
+        summary: ai.summary,
+        riskLevel: ai.riskLevel,
+        clauses: ai.clauses,
+        missingProtections: ai.missingProtections,
+        conflicts: ai.conflicts,
+        recommendations: ai.recommendations,
+        estimatedAnnualCost: ai.estimatedAnnualCost,
+        counterProposalDraft: ai.counterProposalDraft,
+        playbookDeviations: ai.playbookDeviations,
+      })
+    );
+    const obligationsJson = JSON.parse(JSON.stringify(obligations));
+
     const contract = await prisma.contract.create({
       data: {
         businessId,
@@ -266,18 +281,8 @@ export async function POST(req: NextRequest) {
         monthlyValue: ai.monthlyValue,
         healthScore: ai.healthScore,
         status,
-        analysis: {
-          summary: ai.summary,
-          riskLevel: ai.riskLevel,
-          clauses: ai.clauses,
-          missingProtections: ai.missingProtections,
-          conflicts: ai.conflicts,
-          recommendations: ai.recommendations,
-          estimatedAnnualCost: ai.estimatedAnnualCost,
-          counterProposalDraft: ai.counterProposalDraft,
-          playbookDeviations: ai.playbookDeviations,
-        },
-        obligations,
+        analysis: analysisJson,
+        obligations: obligationsJson,
       },
     });
 
