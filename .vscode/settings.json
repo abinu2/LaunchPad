@@ -1,3 +1,5 @@
 {
-    "typescript.autoClosingTags": false
+    "typescript.autoClosingTags": false,
+    "geminicodeassist.codeGenerationPaneViewEnabled": true,
+    "geminicodeassist.enableTelemetry": true
 }

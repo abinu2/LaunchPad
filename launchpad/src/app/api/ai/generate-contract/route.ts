@@ -7,9 +7,8 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
-import { groqJSON, groqText, isGroqConfigured } from "@/lib/groq";
+import { groqText, isGroqConfigured } from "@/lib/groq";
 import { generateText, LONG_CONTEXT_MODEL } from "@/lib/vertex-ai";
-import { prisma } from "@/lib/prisma";
 
 export const maxDuration = 10;
 
@@ -59,20 +58,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const [{ business }] = await Promise.all([requireBusinessAccess(businessId)]);
-
-    const biz = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: {
-        businessName: true, businessType: true, entityType: true,
-        entityState: true, ownerName: true, usesPersonalVehicle: true,
-        serviceTypes: true,
-      },
-    });
-
-    if (!biz) {
-      return NextResponse.json({ error: "Business not found" }, { status: 404 });
-    }
+    const { business: biz } = await requireBusinessAccess(businessId);
 
     const serviceTypes = Array.isArray(biz.serviceTypes)
       ? (biz.serviceTypes as { name?: string }[])

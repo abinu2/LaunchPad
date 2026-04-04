@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { PlaidConnectButton } from "@/components/plaid/PlaidConnectButton";
+import { getBusiness, updateBusiness } from "@/services/business-graph";
 import type { OnboardingResult } from "@/types/onboarding";
 
 interface Props {
   result: OnboardingResult;
-  onSave: (businessId?: string) => Promise<void>;
+  // return created businessId so parent can offer bank connect before navigation
+  onSave: () => Promise<string>;
   businessId?: string;
 }
 
@@ -21,10 +24,21 @@ export function OnboardingResults({ result, onSave, businessId }: Props) {
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState<string | null>("entity");
   const [bankConnected, setBankConnected] = useState(false);
+  const [savedBusinessId, setSavedBusinessId] = useState<string | null>(businessId ?? null);
+  const [bankSkipped, setBankSkipped] = useState(false);
+  const router = useRouter();
 
-  const handleSave = async () => {
+  const handleSave = async (navigateAfter = true) => {
     setSaving(true);
-    await onSave();
+    try {
+      const id = await onSave();
+      setSavedBusinessId(id || null);
+      if (navigateAfter && id) {
+        router.replace("/dashboard");
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggle = (id: string) => setExpanded(expanded === id ? null : id);
@@ -223,27 +237,51 @@ export function OnboardingResults({ result, onSave, businessId }: Props) {
                   </svg>
                   Bank connected — you&apos;re all set
                 </div>
-              ) : businessId ? (
+              ) : savedBusinessId ? (
                 <div className="mt-3 flex items-center gap-3">
                   <PlaidConnectButton
-                    businessId={businessId}
+                    businessId={savedBusinessId}
                     onSuccess={() => setBankConnected(true)}
                     className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
                   >
                     Link bank account
                   </PlaidConnectButton>
+                  <button
+                    onClick={async () => {
+                      if (!savedBusinessId) return;
+                      try {
+                        const existing = await getBusiness(savedBusinessId);
+                        const steps = existing?.completedSteps ?? [];
+                        if (!steps.includes("bank_skipped")) steps.push("bank_skipped");
+                        await updateBusiness(savedBusinessId, { completedSteps: steps });
+                        setBankSkipped(true);
+                      } catch (err) {
+                        // non-blocking
+                      }
+                    }}
+                    className="text-xs text-slate-500 underline"
+                  >
+                    Skip for now
+                  </button>
                   <span className="text-xs text-slate-400">Optional — you can do this later from your dashboard</span>
                 </div>
               ) : (
-                <p className="mt-2 text-xs text-slate-400">You can connect your bank from the dashboard after saving your plan.</p>
+                <div className="mt-2 text-xs text-slate-400">
+                  <div>You can connect your bank from the dashboard after saving your plan.</div>
+                  <div className="mt-2 flex gap-2">
+                    <Button onClick={() => handleSave(true)} loading={saving} className="py-2 px-3 text-sm">Save and go to dashboard</Button>
+                    <Button onClick={() => handleSave(false)} loading={saving} className="py-2 px-3 text-sm">Save & connect bank</Button>
+                  </div>
+                </div>
               )}
+              {bankSkipped && <p className="text-xs text-slate-400 mt-2">You skipped bank connection — you can link it anytime from dashboard.</p>}
             </div>
           </div>
         </div>
 
         {/* CTA */}
         <div className="pt-2 pb-8">
-          <Button onClick={handleSave} loading={saving} className="w-full py-3 text-base">
+          <Button onClick={() => handleSave(true)} loading={saving} className="w-full py-3 text-base">
             Save my plan and go to dashboard
           </Button>
           <p className="text-center text-xs text-slate-400 mt-3">

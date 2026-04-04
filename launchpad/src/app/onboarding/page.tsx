@@ -9,7 +9,7 @@ import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { Button } from "@/components/ui/Button";
 import { OnboardingChat } from "@/components/onboarding/OnboardingChat";
 import { OnboardingResults } from "@/components/onboarding/OnboardingResults";
-import type { OnboardingAnswers, OnboardingResult } from "@/types/onboarding";
+import { OnboardingAnswers, OnboardingResult } from "@/types/onboarding";
 
 type Stage = "intro" | "chat" | "processing" | "results";
 
@@ -44,7 +44,7 @@ export default function OnboardingPage() {
   };
 
   const handleSaveBusiness = async () => {
-    if (!result || !user) return;
+    if (!result || !user) return "";
 
     const businessId = await createBusiness(user.sub, {
       ...result.businessProfile,
@@ -78,7 +78,7 @@ export default function OnboardingPage() {
     }
 
     await refreshBusiness();
-    router.replace("/dashboard");
+    return businessId;
   };
 
   if (stage === "intro") {
