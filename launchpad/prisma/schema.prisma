@@ -1,0 +1,262 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Business ─────────────────────────────────────────────────────────────────
+
+model Business {
+  id        String   @id @default(cuid())
+  auth0Id   String   @unique  // Auth0 user sub (e.g. "auth0|abc123")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessName           String
+  businessType           String   @default("")
+  naicsCode              String   @default("")
+  entityType             String   @default("sole_prop")
+  entityState            String   @default("")
+  ein                    String?
+  formationDate          String?
+  businessAddress        Json     @default("{}")
+  operatingJurisdictions Json     @default("[]")
+  ownerName              String   @default("")
+  ownerEmail             String   @default("")
+  ownerPhone             String   @default("")
+  hasOtherJob            Boolean  @default(false)
+  estimatedW2Income      Float?
+  isFirstTimeBusiness    Boolean  @default(true)
+  serviceTypes           Json     @default("[]")
+  targetMarket           String   @default("residential")
+  usesPersonalVehicle    Boolean  @default(false)
+  hasEmployees           Boolean  @default(false)
+  employeeCount          Int      @default(0)
+  hasContractors         Boolean  @default(false)
+  contractorCount        Int      @default(0)
+  onboardingStage        String   @default("idea")
+  completedSteps         Json     @default("[]")
+
+  // Financials snapshot (denormalized for fast dashboard reads)
+  monthlyRevenueAvg    Float    @default(0)
+  monthlyExpenseAvg    Float    @default(0)
+  profitMargin         Float    @default(0)
+  totalRevenueYTD      Float    @default(0)
+  totalExpensesYTD     Float    @default(0)
+  currentCashBalance   Float?
+  financialsUpdatedAt  DateTime?
+
+  contracts            Contract[]
+  receipts             Receipt[]
+  quotes               Quote[]
+  complianceItems      ComplianceItem[]
+  fundingOpportunities FundingOpportunity[]
+  bankTransactions     BankTransaction[]
+  plaidConnections     PlaidConnection[]
+  growthActions        GrowthAction[]
+}
+
+// ─── Contracts ────────────────────────────────────────────────────────────────
+
+model Contract {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  fileName                String
+  fileUrl                 String
+  fileType                String   @default("pdf")
+  contractType            String   @default("other")
+  counterpartyName        String
+  effectiveDate           String?
+  expirationDate          String?
+  autoRenews              Boolean  @default(false)
+  autoRenewalDate         String?
+  autoRenewalNoticePeriod Int?
+  terminationNoticePeriod Int?
+  totalValue              Float?
+  monthlyValue            Float?
+  healthScore             Int      @default(100)
+  status                  String   @default("active")
+  analysis                Json     @default("{}")
+  obligations             Json     @default("[]")
+}
+
+// ─── Receipts ─────────────────────────────────────────────────────────────────
+
+model Receipt {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  imageUrl           String
+  vendor             String
+  amount             Float
+  date               String
+  lineItems          Json     @default("[]")
+  category           String   @default("other")
+  taxClassification  String   @default("expense")
+  businessPercentage Float    @default(100)
+  deductibleAmount   Float    @default(0)
+  taxNotes           String   @default("")
+  isReconciled       Boolean  @default(false)
+  associatedMileage  Float?
+  needsMoreInfo      Boolean  @default(false)
+  pendingQuestion    String?
+}
+
+// ─── Quotes ───────────────────────────────────────────────────────────────────
+
+model Quote {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  clientName            String
+  clientEmail           String   @default("")
+  clientPhone           String   @default("")
+  services              Json     @default("[]")
+  subtotal              Float    @default(0)
+  taxRate               Float    @default(0)
+  taxAmount             Float    @default(0)
+  total                 Float    @default(0)
+  pricingAnalysis       Json?
+  status                String   @default("draft")
+  sentAt                DateTime?
+  viewedAt              DateTime?
+  acceptedAt            DateTime?
+  paidAt                DateTime?
+  contractGenerated     Boolean  @default(false)
+  contractId            String?
+  contractSignedAt      DateTime?
+  stripePaymentIntentId String?
+  paymentMethod         String?
+  paymentUrl            String?
+  scheduledDate         String?
+  scheduledTime         String?
+  scheduledAddress      String?
+  followUpsSent         Int      @default(0)
+  lastFollowUpAt        DateTime?
+  nextFollowUpAt        DateTime?
+}
+
+// ─── Compliance ───────────────────────────────────────────────────────────────
+
+model ComplianceItem {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  title                   String
+  description             String
+  jurisdiction            String
+  jurisdictionName        String
+  category                String
+  isRequired              Boolean  @default(true)
+  legalCitation           String?
+  status                  String   @default("not_started")
+  obtainedDate            String?
+  expirationDate          String?
+  renewalDate             String?
+  renewalFrequency        String?
+  daysUntilDue            Int?
+  applicationUrl          String?
+  cost                    Float?
+  estimatedProcessingTime String?
+  documentationRequired   Json     @default("[]")
+  penaltyForNonCompliance String?
+  reminderSent30Days      Boolean  @default(false)
+  reminderSent14Days      Boolean  @default(false)
+  reminderSent3Days       Boolean  @default(false)
+  lastCheckedAt           DateTime @default(now())
+  proofUrl                String?
+}
+
+// ─── Funding Opportunities ────────────────────────────────────────────────────
+
+model FundingOpportunity {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  name                 String
+  provider             String
+  type                 String
+  amountMin            Float    @default(0)
+  amountMax            Float    @default(0)
+  interestRate         String?
+  repaymentTerms       String?
+  eligibilityMatch     Int      @default(0)
+  eligibilityCriteria  Json     @default("[]")
+  applicationUrl       String
+  applicationDeadline  String?
+  status               String   @default("discovered")
+  applicationProgress  Int      @default(0)
+  prefilledFields      Json     @default("{}")
+  fitScore             Int      @default(0)
+  recommendation       String   @default("")
+  estimatedTimeToApply String   @default("")
+}
+
+// ─── Bank Transactions ────────────────────────────────────────────────────────
+
+model BankTransaction {
+  id            String   @id @default(cuid())
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  transactionId String   @unique
+  accountId     String
+  amount        Float
+  date          String
+  name          String
+  merchantName  String?
+  category      Json     @default("[]")
+  pending       Boolean  @default(false)
+  paymentChannel String  @default("")
+  personalFinanceCategory Json?
+}
+
+// ─── Plaid Connections ────────────────────────────────────────────────────────
+
+model PlaidConnection {
+  id              String    @id @default(cuid())
+  businessId      String
+  business        Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  itemId          String    @unique
+  accessToken     String
+  institutionId   String
+  institutionName String
+  accounts        Json      @default("[]")
+  status          String    @default("active")
+  errorCode       String?
+  lastSyncedAt    DateTime?
+}
+
+// ─── Growth Actions ───────────────────────────────────────────────────────────
+
+model GrowthAction {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  type       String
+  title      String
+  impact     String
+  reasoning  String
+  urgency    String   @default("medium")
+  effort     String   @default("medium")
+  dismissed  Boolean  @default(false)
+}

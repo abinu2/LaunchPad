@@ -1,0 +1,42 @@
+{
+  "name": "launchpad",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@auth0/nextjs-auth0": "^4.16.1",
+    "@azure/storage-blob": "^12.31.0",
+    "@google-cloud/vertexai": "^1.10.4",
+    "@prisma/client": "^7.6.0",
+    "@stripe/stripe-js": "^9.0.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^1.7.0",
+    "next": "16.2.2",
+    "plaid": "^41.4.0",
+    "prisma": "^7.6.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-dropzone": "^15.0.0",
+    "react-plaid-link": "^4.1.1",
+    "recharts": "^3.8.1",
+    "stripe": "^22.0.0",
+    "tailwind-merge": "^3.5.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.2",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
