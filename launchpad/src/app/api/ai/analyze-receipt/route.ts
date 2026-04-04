@@ -1,7 +1,7 @@
 /**
  * POST /api/ai/analyze-receipt
  *
- * Downloads a receipt image/PDF from Azure Blob Storage, sends it to Gemini
+ * Downloads a receipt image/PDF from storage, sends it to Gemini
  * as inline data, and returns structured expense data for the receipt.
  *
  * Body: { fileUrl, fileMimeType, businessId }
@@ -9,6 +9,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
+import { fetchWithRetry } from "@/lib/fetch-file";
 import { generateJSONWithFile, DEFAULT_MODEL } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
 
@@ -44,11 +45,7 @@ export async function POST(req: NextRequest) {
     // Fetch business profile for context
     const biz = await prisma.business.findUnique({ where: { id: businessId } });
 
-    // Download the file from Azure Blob Storage
-    const fileRes = await fetch(fileUrl);
-    if (!fileRes.ok) {
-      throw new Error(`Failed to fetch receipt image (${fileRes.status})`);
-    }
+    const fileRes = await fetchWithRetry(fileUrl);
     const fileBuffer = await fileRes.arrayBuffer();
     const fileBase64 = Buffer.from(fileBuffer).toString("base64");
 
@@ -127,6 +124,15 @@ Return ONLY the JSON object.`;
     return NextResponse.json(result);
   } catch (err) {
     console.error("analyze-receipt error:", err);
-    return NextResponse.json({ error: "Receipt analysis failed" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Receipt analysis failed";
+    const isConfig =
+      message.includes("API_KEY") ||
+      message.includes("BLOB_READ_WRITE_TOKEN") ||
+      message.includes("Unauthorized") ||
+      message.includes("Forbidden");
+    return NextResponse.json(
+      { error: isConfig ? message : "Receipt analysis failed - please try again" },
+      { status: 500 }
+    );
   }
 }

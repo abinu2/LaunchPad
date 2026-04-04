@@ -2,14 +2,14 @@
  * POST /api/ai/analyze-contract
  *
  * Body:
- *   fileUrl      - Azure Blob Storage public URL of the uploaded contract
+ *   fileUrl      - public URL of the uploaded contract
  *   fileName     - original filename
  *   fileType     - "pdf" | "docx" | "image"
  *   fileMimeType - exact MIME type (for example "application/pdf" or "image/jpeg")
  *   businessId   - Prisma business ID
  *
  * Flow:
- *   1. Download the contract file from Azure
+ *   1. Download the contract file
  *   2. Fetch existing contracts for cross-contract conflict detection
  *   3. Fetch business profile for context
  *   4. Send file bytes + context to Gemini as inline data
@@ -19,6 +19,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
+import { fetchWithRetry } from "@/lib/fetch-file";
 import { generateJSONWithFile, LONG_CONTEXT_MODEL } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
 import { serializeContract } from "@/lib/serializers";
@@ -174,10 +175,7 @@ export async function POST(req: NextRequest) {
 
     await requireBusinessAccess(businessId);
 
-    const fileRes = await fetch(fileUrl);
-    if (!fileRes.ok) {
-      throw new Error(`Failed to fetch contract file (${fileRes.status})`);
-    }
+    const fileRes = await fetchWithRetry(fileUrl);
 
     const fileBuffer = await fileRes.arrayBuffer();
     const fileBase64 = Buffer.from(fileBuffer).toString("base64");
@@ -291,7 +289,12 @@ export async function POST(req: NextRequest) {
     console.error("analyze-contract error:", err);
     const message = err instanceof Error ? err.message : "Contract analysis failed";
     // Surface config errors directly so they're actionable
-    const isConfig = message.includes("API_KEY") || message.includes("CONNECTION_STRING") || message.includes("Unauthorized") || message.includes("Forbidden");
+    const isConfig =
+      message.includes("API_KEY") ||
+      message.includes("CONNECTION_STRING") ||
+      message.includes("BLOB_READ_WRITE_TOKEN") ||
+      message.includes("Unauthorized") ||
+      message.includes("Forbidden");
     return NextResponse.json({ error: isConfig ? message : "Contract analysis failed — please try again" }, { status: 500 });
   }
 }

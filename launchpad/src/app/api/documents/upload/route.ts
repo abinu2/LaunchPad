@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireBusinessAccess } from "@/lib/api-auth";
 import { put } from "@vercel/blob";
 
 const ALLOWED_TYPES = new Set([
@@ -22,6 +23,9 @@ export async function POST(req: NextRequest) {
     if (!file || !businessId) {
       return NextResponse.json({ error: "file and businessId are required" }, { status: 400 });
     }
+
+    await requireBusinessAccess(businessId);
+
     if (!ALLOWED_TYPES.has(file.type)) {
       return NextResponse.json({ error: "Unsupported file type" }, { status: 415 });
     }
@@ -41,7 +45,10 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("upload error:", err);
     const message = err instanceof Error ? err.message : "Upload failed";
-    const isConfig = message.includes("BLOB_READ_WRITE_TOKEN");
+    const isConfig =
+      message.includes("BLOB_READ_WRITE_TOKEN") ||
+      message.includes("Unauthorized") ||
+      message.includes("Forbidden");
     return NextResponse.json({ error: isConfig ? message : "Upload failed" }, { status: 500 });
   }
 }
