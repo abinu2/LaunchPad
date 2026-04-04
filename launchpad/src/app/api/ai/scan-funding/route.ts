@@ -131,9 +131,19 @@ Return a JSON array of funding opportunities with this structure:
   }
 ]`;
 
-  return isGroqConfigured()
-    ? await groqJSON<FundingSource[]>(prompt)
-    : await generateJSON<FundingSource[]>(prompt);
+  try {
+    const isGroqConfigured = !!process.env.GROQ_API_KEY;
+    if (!isGroqConfigured) {
+      console.warn("Groq API not configured - returning empty opportunities");
+      return [];
+    }
+
+    const { groqJSON } = await import("@/lib/groq");
+    return await groqJSON<FundingSource[]>(prompt);
+  } catch (err) {
+    console.error("AI funding generation error:", err);
+    return [];
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -156,6 +166,16 @@ export async function POST(req: NextRequest) {
 
     // Scrape or generate funding opportunities
     const opportunities = await scrapeFundingOpportunities(biz.businessType, state, city);
+
+    // If no opportunities found, return success with empty array
+    if (!opportunities || opportunities.length === 0) {
+      return NextResponse.json({
+        success: true,
+        count: 0,
+        opportunities: [],
+        message: "No funding opportunities found. Try again later or configure Tiny Fish API.",
+      });
+    }
 
     // Clear old discovered opportunities and insert new ones
     await prisma.fundingOpportunity.deleteMany({
@@ -191,6 +211,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error("scan-funding error:", err);
-    return NextResponse.json({ error: "Scan failed" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Scan failed - ensure Groq API is configured",
+      details: err instanceof Error ? err.message : "Unknown error"
+    }, { status: 500 });
   }
 }

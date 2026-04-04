@@ -55,6 +55,18 @@ export async function POST(req: NextRequest) {
     await requireBusinessAccess(businessId);
     const biz = await prisma.business.findUnique({ where: { id: businessId } });
     if (!biz) return NextResponse.json({ error: "Business not found" }, { status: 404 });
+
+    // Check if Groq is configured
+    if (!isGroqConfigured()) {
+      console.warn("Groq API not configured - scan-opportunities requires Groq");
+      return NextResponse.json({ 
+        error: "Scan not available - Groq API not configured",
+        fundingCount: 0,
+        pricingCount: 0,
+        expenseCount: 0,
+      }, { status: 400 });
+    }
+
     const businessAddress = (biz.businessAddress ?? {}) as { city?: string; county?: string };
     const serviceTypes = Array.isArray(biz.serviceTypes)
       ? (biz.serviceTypes as { name?: string; basePrice?: number }[])
@@ -240,7 +252,10 @@ Return a JSON object with this exact structure:
     });
   } catch (err) {
     console.error("scan-opportunities error:", err);
-    return NextResponse.json({ error: "Scan failed" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Scan failed - ensure Groq API is configured",
+      details: err instanceof Error ? err.message : "Unknown error"
+    }, { status: 500 });
   }
 }
 
