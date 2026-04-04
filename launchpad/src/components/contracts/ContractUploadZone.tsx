@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { upload } from "@vercel/blob/client";
 import { useDropzone } from "react-dropzone";
 import { Spinner } from "@/components/ui/Spinner";
+import {
+  buildBusinessBlobPath,
+  DOCUMENT_UPLOAD_MAX_BYTES,
+} from "@/lib/blob-upload";
 
 interface Props {
   businessId: string;
@@ -40,23 +45,25 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
       setProgress(10);
 
       try {
-        // Step 1: Upload the file to document storage
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("businessId", businessId);
-        formData.append("folder", "contracts");
-
-        const uploadRes = await fetch("/api/documents/upload", {
-          method: "POST",
-          body: formData,
+        const blobPath = buildBusinessBlobPath({
+          businessId,
+          folder: "contracts",
+          fileName: file.name,
         });
-
-        if (!uploadRes.ok) {
-          const err = await uploadRes.json();
-          throw new Error(err.error ?? "Upload failed");
-        }
-
-        const { url, name, mimeType: fileMimeType } = await uploadRes.json();
+        const uploadedBlob = await upload(blobPath, file, {
+          access: "public",
+          contentType: file.type,
+          handleUploadUrl: "/api/documents/client-upload",
+          clientPayload: JSON.stringify({
+            businessId,
+            folder: "contracts",
+            originalFileName: file.name,
+          }),
+          multipart: file.size > 5 * 1024 * 1024,
+          onUploadProgress: ({ percentage }) => {
+            setProgress(Math.max(10, Math.min(35, Math.round(percentage * 0.35))));
+          },
+        });
         setProgress(40);
         setStage("analyzing");
 
@@ -71,10 +78,10 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            fileUrl: url,
-            fileName: name,
+            fileUrl: uploadedBlob.url,
+            fileName: file.name,
             fileType,
-            fileMimeType: fileMimeType ?? file.type,
+            fileMimeType: uploadedBlob.contentType ?? file.type,
             businessId,
           }),
         });
@@ -98,7 +105,7 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: ACCEPTED,
     maxFiles: 1,
-    maxSize: 20 * 1024 * 1024,
+    maxSize: DOCUMENT_UPLOAD_MAX_BYTES,
     onDropAccepted: ([file]) => processFile(file),
     onDropRejected: ([rejection]) => {
       const msg = rejection.errors[0]?.message ?? "Invalid file";

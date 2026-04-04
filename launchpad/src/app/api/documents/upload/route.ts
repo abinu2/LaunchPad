@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
 import { put } from "@vercel/blob";
-
-const ALLOWED_TYPES = new Set([
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/heic",
-]);
-
-const MAX_BYTES = 20 * 1024 * 1024; // 20 MB
+import {
+  buildBusinessBlobPath,
+  DOCUMENT_UPLOAD_MAX_BYTES,
+  isAllowedDocumentUploadType,
+} from "@/lib/blob-upload";
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,15 +20,14 @@ export async function POST(req: NextRequest) {
 
     await requireBusinessAccess(businessId);
 
-    if (!ALLOWED_TYPES.has(file.type)) {
+    if (!isAllowedDocumentUploadType(file.type)) {
       return NextResponse.json({ error: "Unsupported file type" }, { status: 415 });
     }
-    if (file.size > MAX_BYTES) {
+    if (file.size > DOCUMENT_UPLOAD_MAX_BYTES) {
       return NextResponse.json({ error: "File exceeds 20 MB limit" }, { status: 413 });
     }
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const blobPath = `businesses/${businessId}/${folder}/${Date.now()}_${safeName}`;
+    const blobPath = buildBusinessBlobPath({ businessId, folder, fileName: file.name });
 
     const { url } = await put(blobPath, file, {
       access: "public",

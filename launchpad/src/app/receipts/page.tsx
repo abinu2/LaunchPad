@@ -1,12 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { upload } from "@vercel/blob/client";
 import { useDropzone } from "react-dropzone";
 import { useBusiness } from "@/context/BusinessContext";
 import { getReceipts, addReceipt } from "@/services/business-graph";
 import { Spinner } from "@/components/ui/Spinner";
 import { SiteNav } from "@/components/ui/SiteNav";
 import type { Receipt, ExpenseCategory } from "@/types/financial";
+import {
+  buildBusinessBlobPath,
+  DOCUMENT_UPLOAD_MAX_BYTES,
+} from "@/lib/blob-upload";
 
 const ACCEPTED = {
   "application/pdf": [".pdf"],
@@ -63,18 +68,25 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
     setProgress(15);
 
     try {
-      // Step 1: Upload to Azure
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("businessId", businessId);
-      formData.append("folder", "receipts");
-
-      const uploadRes = await fetch("/api/documents/upload", { method: "POST", body: formData });
-      if (!uploadRes.ok) {
-        const err = await uploadRes.json();
-        throw new Error(err.error ?? "Upload failed");
-      }
-      const { url, mimeType: fileMimeType } = await uploadRes.json();
+      const blobPath = buildBusinessBlobPath({
+        businessId,
+        folder: "receipts",
+        fileName: file.name,
+      });
+      const uploadedBlob = await upload(blobPath, file, {
+        access: "public",
+        contentType: file.type,
+        handleUploadUrl: "/api/documents/client-upload",
+        clientPayload: JSON.stringify({
+          businessId,
+          folder: "receipts",
+          originalFileName: file.name,
+        }),
+        multipart: file.size > 5 * 1024 * 1024,
+        onUploadProgress: ({ percentage }) => {
+          setProgress(Math.max(15, Math.min(35, Math.round(percentage * 0.35))));
+        },
+      });
       setProgress(40);
       setStage("analyzing");
 
@@ -82,7 +94,11 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
       const analyzeRes = await fetch("/api/ai/analyze-receipt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileUrl: url, fileMimeType: fileMimeType ?? file.type, businessId }),
+        body: JSON.stringify({
+          fileUrl: uploadedBlob.url,
+          fileMimeType: uploadedBlob.contentType ?? file.type,
+          businessId,
+        }),
       });
       if (!analyzeRes.ok) {
         const err = await analyzeRes.json();
@@ -91,7 +107,7 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
 
       const data = await analyzeRes.json();
       setProgress(80);
-      setScanned({ ...data, imageUrl: url });
+      setScanned({ ...data, imageUrl: uploadedBlob.url });
       setStage("done");
       setProgress(100);
     } catch (e) {
@@ -103,7 +119,7 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: ACCEPTED,
     maxFiles: 1,
-    maxSize: 20 * 1024 * 1024,
+    maxSize: DOCUMENT_UPLOAD_MAX_BYTES,
     onDropAccepted: ([file]) => processFile(file),
     onDropRejected: ([r]) => setError(r.errors[0]?.message ?? "Invalid file"),
     disabled: stage === "uploading" || stage === "analyzing",
