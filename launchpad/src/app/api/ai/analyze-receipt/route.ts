@@ -1,24 +1,26 @@
 /**
  * POST /api/ai/analyze-receipt
  *
- * Strategy:
- *   - Extract readable text from PDFs and images
- *   - Prefer Groq for structured text analysis
- *   - Use Gemini only as OCR fallback when the document itself does not yield enough text
+ * Fast path (preferred): client sends { fileBase64, fileMimeType, businessId }
+ *   → Groq vision does OCR + analysis in ONE call (~1–2s)
  *
- * Body: { fileUrl, fileMimeType, businessId }
+ * Fallback: client sends { fileUrl, fileMimeType, businessId }
+ *   → API downloads from blob → extracts text → Groq/Gemini analysis
+ *
+ * Returns structured receipt JSON without saving — the client saves via addReceipt().
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
 import {
+  analyzeImageWithGroqVision,
   extractDocumentText,
-  generatePreferredJSON,
   isSupportedDocumentMimeType,
+  isImageMimeType,
   normalizeDocumentMimeType,
 } from "@/lib/document-ai";
+import { generatePreferredJSON } from "@/lib/document-ai";
 import { fetchWithRetry } from "@/lib/fetch-file";
 import { prisma } from "@/lib/prisma";
-import { DEFAULT_MODEL } from "@/lib/vertex-ai";
 
 export const maxDuration = 60;
 
@@ -43,10 +45,10 @@ const RECEIPT_RULES = `RULES:
 - asset: equipment >$2,500 lasting >1 year
 - personal: non-deductible
 - mixed: both business and personal use
-- Gas/fuel: category=vehicle_fuel
-- Restaurant: category=meals_entertainment, businessPercentage=50 (only 50% deductible)
-- Phone/internet: category=utilities, businessPercentage=50-80
-- deductibleAmount = amount x (businessPercentage/100) x deductibility_factor`;
+- Gas/fuel → category=vehicle_fuel
+- Restaurant → category=meals_entertainment, businessPercentage=50 (only 50% deductible under IRS rules)
+- Phone/internet → category=utilities, businessPercentage=50–80
+- deductibleAmount = amount × (businessPercentage/100) × deductibility_factor`;
 
 type ReceiptResult = {
   vendor: string;
@@ -65,10 +67,21 @@ type ReceiptResult = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { fileUrl, fileMimeType, businessId } = await req.json();
+    const body = await req.json() as {
+      fileBase64?: string;
+      fileUrl?: string;
+      fileMimeType?: string;
+      businessId?: string;
+    };
 
-    if (!fileUrl || !businessId) {
-      return NextResponse.json({ error: "fileUrl and businessId are required" }, { status: 400 });
+    const { fileBase64, fileUrl, businessId } = body;
+    const fileMimeType = body.fileMimeType ?? "";
+
+    if (!businessId || (!fileBase64 && !fileUrl)) {
+      return NextResponse.json(
+        { error: "businessId and either fileBase64 or fileUrl are required" },
+        { status: 400 }
+      );
     }
 
     const mimeType = normalizeDocumentMimeType(fileMimeType);
@@ -89,8 +102,39 @@ export async function POST(req: NextRequest) {
       ? `Business: ${biz.businessName} (${biz.businessType}), Entity: ${biz.entityType}, Services: ${serviceTypes.map((s) => s.name).filter(Boolean).join(", ") || "general"}`
       : "Business context unavailable";
 
-    const fileRes = await fetchWithRetry(fileUrl);
-    const fileBuffer = Buffer.from(await fileRes.arrayBuffer());
+    // ── Resolve file buffer ───────────────────────────────────────────────────
+    let fileBuffer: Buffer;
+    if (fileBase64) {
+      fileBuffer = Buffer.from(fileBase64, "base64");
+    } else {
+      const fileRes = await fetchWithRetry(fileUrl!);
+      fileBuffer = Buffer.from(await fileRes.arrayBuffer());
+    }
+
+    // ── Fast path: Groq vision for images (OCR + analysis in one call) ────────
+    if (isImageMimeType(mimeType)) {
+      const visionPrompt = `You are an expert bookkeeper. Look at this receipt or expense document for a small business.
+
+${businessContext}
+
+Extract all visible information and return ONLY a JSON object matching this schema:
+${RECEIPT_SCHEMA}
+
+${RECEIPT_RULES}`;
+
+      const visionResult = await analyzeImageWithGroqVision<ReceiptResult>(
+        visionPrompt,
+        fileBuffer,
+        mimeType
+      );
+
+      if (visionResult) {
+        return NextResponse.json(visionResult);
+      }
+      // If Groq vision not configured, fall through to text extraction path
+    }
+
+    // ── Text path: extract text then analyze ─────────────────────────────────
     const receiptText = await extractDocumentText(fileBuffer, mimeType, {
       minCharacters: 10,
       preferOcr: false,
@@ -108,9 +152,7 @@ ${RECEIPT_SCHEMA}
 
 ${RECEIPT_RULES}`;
 
-    const result = await generatePreferredJSON<ReceiptResult>(prompt, {
-      geminiModel: DEFAULT_MODEL,
-    });
+    const result = await generatePreferredJSON<ReceiptResult>(prompt);
 
     return NextResponse.json(result);
   } catch (err) {
@@ -122,7 +164,7 @@ ${RECEIPT_RULES}`;
       message.includes("GROQ_API_KEY") ||
       message.includes("GEMINI_API_KEY");
     return NextResponse.json(
-      { error: isConfig ? message : "Receipt analysis failed - please try again" },
+      { error: isConfig ? message : "Receipt analysis failed — please try again" },
       { status: 500 }
     );
   }

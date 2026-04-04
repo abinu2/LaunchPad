@@ -1,19 +1,21 @@
 /**
  * POST /api/ai/analyze-contract
  *
- * Strategy:
- *   - Extract readable text from PDFs and images
- *   - Prefer Groq for structured legal analysis
- *   - Use Gemini only as OCR fallback when the document itself does not yield enough text
+ * Fast path (preferred): client sends { fileBase64, fileMimeType, ... }
+ *   PDFs  → pdf-parse (no AI for extraction) + Groq text analysis (~3–5s)
+ *   Images → Groq vision does OCR + analysis in ONE call (~2–4s)
  *
- * Body: { fileUrl, fileName, fileType, fileMimeType, businessId }
+ * Fallback: client sends { fileUrl, fileMimeType, ... }
+ *   → API downloads from Vercel Blob, then same paths as above
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
 import {
+  analyzeImageWithGroqVision,
   extractDocumentText,
   generatePreferredJSON,
   isSupportedDocumentMimeType,
+  isImageMimeType,
   normalizeDocumentMimeType,
 } from "@/lib/document-ai";
 import { fetchWithRetry } from "@/lib/fetch-file";
@@ -40,7 +42,7 @@ const CONTRACT_JSON_SCHEMA = `{
   "riskLevel": "low|medium|high|critical",
   "clauses": [{"clauseNumber":"","clauseTitle":"","originalText":"","plainEnglish":"","riskLevel":"safe|caution|danger","issue":null,"recommendation":null,"businessImpact":null,"playbookClause":null}],
   "missingProtections": ["string"],
-  "conflicts": [{"thisClause":"","conflictingContractId":"","conflictingContractName":"","conflictingClause":"","description":"","recommendation":""}],
+  "conflicts": [],
   "recommendations": ["string"],
   "estimatedAnnualCost": number or null,
   "counterProposalDraft": "string or null",
@@ -48,7 +50,7 @@ const CONTRACT_JSON_SCHEMA = `{
   "obligations": [{"clauseRef":"","description":"","party":"business|counterparty","triggerType":"date|event|threshold|recurring","triggerDescription":"","dueDate":null,"recurringFrequency":null,"status":"pending","monitoredField":null,"monitoredThreshold":null,"notes":null}]
 }`;
 
-function buildPrompt(contractText: string, businessContext: string, existingSummaries: string): string {
+function buildTextPrompt(contractText: string, businessContext: string, existingSummaries: string): string {
   return `You are an expert business attorney reviewing a contract for a small business owner. Explain everything in plain English while being legally precise.
 
 ${businessContext}
@@ -63,10 +65,27 @@ Return ONLY a JSON object matching this exact schema. No markdown, no explanatio
 ${CONTRACT_JSON_SCHEMA}
 
 RULES:
+- healthScore: 90-100=clean, 70-89=minor issues, 50-69=significant concerns, <50=major problems
+- Flag personal guarantees, non-competes, one-sided indemnification, auto-renewals
+- counterProposalDraft: professional legal language the owner can send to the counterparty
+- conflicts: [] (leave empty unless you see a direct conflict with the existing contracts listed above)`;
+}
+
+function buildVisionPrompt(businessContext: string, existingSummaries: string): string {
+  return `You are an expert business attorney. Read every visible word of this contract document and analyze it for a small business owner.
+
+${businessContext}
+
+EXISTING CONTRACTS:
+${existingSummaries || "None."}
+
+Return ONLY a JSON object matching this exact schema. No markdown:
+${CONTRACT_JSON_SCHEMA}
+
+RULES:
 - healthScore: 90-100=clean, 70-89=minor issues, 50-69=significant, <50=major problems
 - Flag personal guarantees, non-competes, one-sided indemnification, auto-renewals
-- Calculate dollar impact of problematic clauses against the business financials
-- counterProposalDraft: professional legal language the owner can send to counterparty`;
+- counterProposalDraft: legal language the owner can send back`;
 }
 
 type ContractAIResult = {
@@ -95,13 +114,28 @@ type ContractAIResult = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { fileUrl, fileName, fileType, fileMimeType, businessId } = await req.json();
+    const body = await req.json() as {
+      fileBase64?: string;
+      fileUrl?: string;
+      fileName?: string;
+      fileType?: string;
+      fileMimeType?: string;
+      businessId?: string;
+    };
 
-    if (!fileUrl || !businessId) {
-      return NextResponse.json({ error: "fileUrl and businessId are required" }, { status: 400 });
+    const { fileBase64, fileUrl, fileName, fileType, businessId } = body;
+    const fileMimeType = body.fileMimeType ?? "";
+
+    if (!businessId || (!fileBase64 && !fileUrl)) {
+      return NextResponse.json(
+        { error: "businessId and either fileBase64 or fileUrl are required" },
+        { status: 400 }
+      );
     }
 
-    const normalizedMime = normalizeDocumentMimeType(fileMimeType || (fileType === "pdf" ? "application/pdf" : ""));
+    const normalizedMime = normalizeDocumentMimeType(
+      fileMimeType || (fileType === "pdf" ? "application/pdf" : "")
+    );
 
     if (!isSupportedDocumentMimeType(normalizedMime)) {
       return NextResponse.json(
@@ -112,10 +146,23 @@ export async function POST(req: NextRequest) {
 
     await requireBusinessAccess(businessId);
 
-    const fileRes = await fetchWithRetry(fileUrl);
-    const fileBuffer = Buffer.from(await fileRes.arrayBuffer());
+    // ── Resolve file buffer ───────────────────────────────────────────────────
+    let fileBuffer: Buffer;
+    if (fileBase64) {
+      fileBuffer = Buffer.from(fileBase64, "base64");
+    } else {
+      const fileRes = await fetchWithRetry(fileUrl!);
+      fileBuffer = Buffer.from(await fileRes.arrayBuffer());
+    }
 
-    const biz = await prisma.business.findUnique({ where: { id: businessId } });
+    // ── Business context & existing contracts ─────────────────────────────────
+    const [biz, existingContracts] = await Promise.all([
+      prisma.business.findUnique({ where: { id: businessId } }),
+      prisma.contract.findMany({
+        where: { businessId, status: { in: ["active", "expiring_soon"] } },
+      }),
+    ]);
+
     const serviceTypes =
       biz && Array.isArray(biz.serviceTypes) ? (biz.serviceTypes as { name?: string }[]) : [];
 
@@ -129,9 +176,6 @@ export async function POST(req: NextRequest) {
 - Has employees: ${biz.hasEmployees}`
       : "BUSINESS CONTEXT: Not available.";
 
-    const existingContracts = await prisma.contract.findMany({
-      where: { businessId, status: { in: ["active", "expiring_soon"] } },
-    });
     const existingSummaries = existingContracts
       .map((c: { id: string; counterpartyName: string; contractType: string; analysis: unknown }) => {
         const analysis = (c.analysis ?? {}) as { summary?: string };
@@ -139,20 +183,47 @@ export async function POST(req: NextRequest) {
       })
       .join("\n");
 
-    const contractText = await extractDocumentText(fileBuffer, normalizedMime, {
-      minCharacters: 50,
-      preferOcr: false,
-    });
-    const prompt = buildPrompt(contractText, businessContext, existingSummaries);
-    const ai = await generatePreferredJSON<ContractAIResult>(prompt, {
-      geminiModel: LONG_CONTEXT_MODEL,
-    });
+    // ── AI analysis ───────────────────────────────────────────────────────────
+    let ai: ContractAIResult;
 
+    if (isImageMimeType(normalizedMime)) {
+      // Image contract: Groq vision does OCR + analysis in one shot
+      const visionResult = await analyzeImageWithGroqVision<ContractAIResult>(
+        buildVisionPrompt(businessContext, existingSummaries),
+        fileBuffer,
+        normalizedMime
+      );
+
+      if (visionResult) {
+        ai = visionResult;
+      } else {
+        // Groq vision not configured: extract text via Gemini OCR then analyze
+        const contractText = await extractDocumentText(fileBuffer, normalizedMime, {
+          minCharacters: 50,
+          preferOcr: true,
+        });
+        ai = await generatePreferredJSON<ContractAIResult>(
+          buildTextPrompt(contractText, businessContext, existingSummaries),
+          { geminiModel: LONG_CONTEXT_MODEL }
+        );
+      }
+    } else {
+      // PDF: extract text with pdf-parse, send to Groq text model
+      const contractText = await extractDocumentText(fileBuffer, normalizedMime, {
+        minCharacters: 50,
+        preferOcr: false,
+      });
+      ai = await generatePreferredJSON<ContractAIResult>(
+        buildTextPrompt(contractText, businessContext, existingSummaries),
+        { geminiModel: LONG_CONTEXT_MODEL }
+      );
+    }
+
+    // ── Persist to database ───────────────────────────────────────────────────
     const now = new Date();
     let status: Contract["status"] = "active";
     if (ai.expirationDate) {
-      const exp = new Date(ai.expirationDate);
-      const days = Math.ceil((exp.getTime() - now.getTime()) / 86400000);
+      const days = Math.ceil((new Date(ai.expirationDate).getTime() - now.getTime()) / 86400000);
       if (days < 0) status = "expired";
       else if (days <= 30) status = "expiring_soon";
     }
@@ -167,7 +238,7 @@ export async function POST(req: NextRequest) {
       data: {
         businessId,
         fileName: fileName ?? "contract",
-        fileUrl,
+        fileUrl: fileUrl ?? "",
         fileType: fileType ?? "pdf",
         contractType: ai.contractType ?? "other",
         counterpartyName: ai.counterpartyName ?? "Unknown",
@@ -208,7 +279,7 @@ export async function POST(req: NextRequest) {
       message.includes("GROQ_API_KEY") ||
       message.includes("GEMINI_API_KEY");
     return NextResponse.json(
-      { error: isConfig ? message : "Contract analysis failed - please try again" },
+      { error: isConfig ? message : "Contract analysis failed — please try again" },
       { status: 500 }
     );
   }

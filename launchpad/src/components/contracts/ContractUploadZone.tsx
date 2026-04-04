@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { upload } from "@vercel/blob/client";
 import { useDropzone } from "react-dropzone";
-import { AILoadingScreen } from "@/components/ui/LoadingScreen";
+import { AILoadingScreen, ContractScanLoader } from "@/components/ui/LoadingScreen";
 import {
   buildBusinessBlobPath,
   DOCUMENT_UPLOAD_MAX_BYTES,
@@ -17,7 +17,7 @@ interface Props {
 
 type Stage = "idle" | "uploading" | "analyzing" | "error";
 
-// DOCX is excluded — Gemini's inline data API does not support it.
+// DOCX is excluded because the analysis pipeline is optimized for PDFs and images.
 // Users should convert DOCX to PDF before uploading.
 const ACCEPTED = {
   "application/pdf": [".pdf"],
@@ -37,56 +37,95 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
       setStage("uploading");
       setProgress(10);
 
+      const isImage = file.type.startsWith("image/");
+      const isPdf = file.type === "application/pdf";
+      const sendBase64 = isImage && file.size < 3 * 1024 * 1024;
+      const fileType = isPdf ? "pdf" : isImage ? "image" : "pdf";
+
       try {
         const blobPath = buildBusinessBlobPath({
           businessId,
           folder: "contracts",
           fileName: file.name,
         });
-        const uploadedBlob = await upload(blobPath, file, {
-          access: "public",
-          contentType: file.type,
-          handleUploadUrl: "/api/documents/client-upload",
-          clientPayload: JSON.stringify({
-            businessId,
-            folder: "contracts",
-            originalFileName: file.name,
-          }),
-          multipart: file.size > 5 * 1024 * 1024,
-          onUploadProgress: ({ percentage }) => {
-            setProgress(Math.max(10, Math.min(35, Math.round(percentage * 0.35))));
-          },
-        });
-        setProgress(40);
-        setStage("analyzing");
 
-        // Step 2: Analyze the extracted contract text
-        const fileType = file.type.includes("pdf")
-          ? "pdf"
-          : file.type.includes("word")
-          ? "docx"
-          : "image";
+        if (sendBase64) {
+          const fileBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve((reader.result as string).split(",")[1] ?? "");
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
 
-        const analyzeRes = await fetch("/api/ai/analyze-contract", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileUrl: uploadedBlob.url,
-            fileName: file.name,
-            fileType,
-            fileMimeType: uploadedBlob.contentType ?? file.type,
-            businessId,
-          }),
-        });
+          const uploadedBlob = await upload(blobPath, file, {
+            access: "public",
+            contentType: file.type,
+            handleUploadUrl: "/api/documents/client-upload",
+            clientPayload: JSON.stringify({ businessId, folder: "contracts", originalFileName: file.name }),
+            onUploadProgress: ({ percentage }) => {
+              setProgress(Math.max(10, Math.min(35, Math.round(percentage * 0.35))));
+            },
+          });
 
-        if (!analyzeRes.ok) {
-          const err = await analyzeRes.json();
-          throw new Error(err.error ?? "Analysis failed");
+          setProgress(40);
+          setStage("analyzing");
+
+          const analyzeRes = await fetch("/api/ai/analyze-contract", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileBase64,
+              fileUrl: uploadedBlob.url,
+              fileName: file.name,
+              fileType,
+              fileMimeType: file.type,
+              businessId,
+            }),
+          });
+
+          if (!analyzeRes.ok) {
+            const err = await analyzeRes.json();
+            throw new Error(err.error ?? "Analysis failed");
+          }
+
+          const contract = await analyzeRes.json();
+          setProgress(100);
+          onComplete(contract.id);
+        } else {
+          const uploadedBlob = await upload(blobPath, file, {
+            access: "public",
+            contentType: file.type,
+            handleUploadUrl: "/api/documents/client-upload",
+            clientPayload: JSON.stringify({ businessId, folder: "contracts", originalFileName: file.name }),
+            multipart: file.size > 5 * 1024 * 1024,
+            onUploadProgress: ({ percentage }) => {
+              setProgress(Math.max(10, Math.min(35, Math.round(percentage * 0.35))));
+            },
+          });
+          setProgress(40);
+          setStage("analyzing");
+
+          const analyzeRes = await fetch("/api/ai/analyze-contract", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileUrl: uploadedBlob.url,
+              fileName: file.name,
+              fileType,
+              fileMimeType: uploadedBlob.contentType ?? file.type,
+              businessId,
+            }),
+          });
+
+          if (!analyzeRes.ok) {
+            const err = await analyzeRes.json();
+            throw new Error(err.error ?? "Analysis failed");
+          }
+
+          const contract = await analyzeRes.json();
+          setProgress(100);
+          onComplete(contract.id);
         }
-
-        const contract = await analyzeRes.json();
-        setProgress(100);
-        onComplete(contract.id);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong");
         setStage("error");
@@ -121,22 +160,16 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
       </div>
 
       {isProcessing ? (
-        <AILoadingScreen
-          title={stage === "uploading" ? "Uploading contract" : "Analyzing contract"}
-          steps={
-            stage === "uploading"
-              ? ["Securing file transfer", "Uploading to Vercel Blob", "Preparing for analysis"]
-              : [
-                  "Reading all pages and clauses",
-                  "Identifying risk factors",
-                  "Checking for conflicts with existing contracts",
-                  "Drafting counter-proposal",
-                  "Calculating health score",
-                ]
-          }
-          progress={progress}
-          variant="inline"
-        />
+        stage === "analyzing" ? (
+          <ContractScanLoader progress={progress} stage="AI is reading every clause..." />
+        ) : (
+          <AILoadingScreen
+            title="Uploading contract"
+            steps={["Securing file transfer", "Uploading to Vercel Blob", "Preparing for analysis"]}
+            progress={progress}
+            variant="inline"
+          />
+        )
       ) : (
         <>
           <div
@@ -156,7 +189,7 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
             <p className="text-slate-700 font-medium mb-1">
               {isDragActive ? "Drop it here" : "Drag & drop or click to upload"}
             </p>
-            <p className="text-slate-400 text-sm">PDF or image (JPG, PNG, WEBP) · Max 50 MB</p>
+            <p className="text-slate-400 text-sm">PDF or image (JPG, PNG, WEBP) - Max 100 MB</p>
           </div>
 
           {error && (
@@ -166,7 +199,7 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
           )}
 
           <p className="text-xs text-slate-400 mt-3 text-center">
-            Groq handles the contract review after text extraction. OCR is used only when a document needs help yielding readable text.
+            Groq handles the contract review after text extraction, with OCR fallback only when a document needs help yielding readable text.
           </p>
         </>
       )}

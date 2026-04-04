@@ -1,8 +1,13 @@
+/**
+ * Fetch a URL with a small number of retries.
+ * Used as a fallback when the client sends a blob URL instead of base64.
+ * Keep retries low — the blob URL should be immediately available after upload.
+ */
 export async function fetchWithRetry(
   url: string,
   options?: RequestInit,
-  retries = 5,
-  delayMs = 750
+  retries = 3,
+  delayMs = 250
 ) {
   let lastError: Error | null = null;
 
@@ -12,8 +17,7 @@ export async function fetchWithRetry(
       if (response.ok) {
         return response;
       }
-
-      lastError = new Error(`Failed to fetch file (${response.status})`);
+      lastError = new Error(`Failed to fetch file (HTTP ${response.status})`);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error("Failed to fetch file");
     }

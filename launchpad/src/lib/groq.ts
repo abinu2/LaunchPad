@@ -1,6 +1,6 @@
 /**
  * Groq client — server-side only.
- * Ultra-fast inference via llama-3.3-70b-versatile.
+ * Ultra-fast inference via llama-3.3-70b-versatile (text) and llama-3.2 vision models.
  * Import only in API routes (src/app/api/**).
  */
 import Groq from "groq-sdk";
@@ -8,6 +8,8 @@ import Groq from "groq-sdk";
 let groqClient: Groq | null = null;
 
 export const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
+/** Vision model for OCR + analysis of images in one call */
+export const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL ?? "meta-llama/llama-4-scout-17b-16e-instruct";
 
 export function isGroqConfigured() {
   return Boolean(process.env.GROQ_API_KEY);
@@ -31,8 +33,9 @@ function cleanJSON(text: string): string {
 }
 
 /**
- * Generate a JSON response from a text prompt using Groq.
- * Groq is text-only — use this after extracting text from PDFs.
+ * Generate a JSON response from a text-only prompt.
+ * Uses llama-3.3-70b-versatile with json_object mode.
+ * max_tokens raised to 32768 to handle large contract analyses.
  */
 export async function groqJSON<T>(prompt: string): Promise<T> {
   const client = getGroqClient();
@@ -41,12 +44,13 @@ export async function groqJSON<T>(prompt: string): Promise<T> {
     messages: [
       {
         role: "system",
-        content: "You are a precise JSON API. Always respond with valid JSON only. No markdown, no explanation, no text outside the JSON object.",
+        content:
+          "You are a precise JSON API. Always respond with valid JSON only. No markdown, no explanation, no text outside the JSON object.",
       },
       { role: "user", content: prompt },
     ],
     temperature: 0.1,
-    max_tokens: 8192,
+    max_tokens: 32768,
     response_format: { type: "json_object" },
   });
 
@@ -58,6 +62,88 @@ export async function groqJSON<T>(prompt: string): Promise<T> {
   } catch {
     throw new Error(`Groq returned invalid JSON: ${cleaned.slice(0, 300)}`);
   }
+}
+
+/**
+ * Generate a JSON response from a prompt + an image.
+ * Uses a Groq vision model to do OCR and structured analysis in a single API call.
+ * The prompt must ask for JSON output explicitly.
+ */
+export async function groqVisionJSON<T>(
+  prompt: string,
+  imageBase64: string,
+  mimeType: string
+): Promise<T> {
+  const client = getGroqClient();
+
+  const completion = await client.chat.completions.create({
+    model: GROQ_VISION_MODEL,
+    stream: false,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "image_url",
+            image_url: { url: `data:${mimeType};base64,${imageBase64}` },
+          },
+          {
+            type: "text",
+            text:
+              "IMPORTANT: Respond with a valid JSON object only. No markdown fences, no explanation.\n\n" +
+              prompt,
+          },
+        ],
+      },
+    ],
+    temperature: 0.1,
+    max_tokens: 16384,
+  });
+
+  const text = completion.choices[0]?.message?.content ?? "";
+  const cleaned = cleanJSON(text);
+
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    // Try to extract JSON substring if model added surrounding text
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]) as T;
+      } catch {
+        // fall through
+      }
+    }
+    throw new Error(`Groq vision returned invalid JSON: ${cleaned.slice(0, 300)}`);
+  }
+}
+
+/**
+ * Generate plain text from Groq (used for OCR from images when you only need raw text).
+ */
+export async function groqVisionText(prompt: string, imageBase64: string, mimeType: string): Promise<string> {
+  const client = getGroqClient();
+  const completion = await client.chat.completions.create({
+    model: GROQ_VISION_MODEL,
+    stream: false,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "image_url",
+            image_url: { url: `data:${mimeType};base64,${imageBase64}` },
+          },
+          { type: "text", text: prompt },
+        ],
+      },
+    ],
+    temperature: 0.1,
+    max_tokens: 8192,
+  });
+
+  return completion.choices[0]?.message?.content ?? "";
 }
 
 /**

@@ -5,6 +5,7 @@ import { useBusiness } from "@/context/BusinessContext";
 import { getQuotes, updateQuote } from "@/services/business-graph";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { QuoteCreateModal } from "@/components/quotes/QuoteCreateModal";
+import { GenerateContractModal } from "@/components/contracts/GenerateContractModal";
 import { SiteNav } from "@/components/ui/SiteNav";
 import type { Quote } from "@/types/quote";
 
@@ -24,6 +25,7 @@ export default function QuotesPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [contractQuote, setContractQuote] = useState<Quote | null>(null);
   const [filter, setFilter] = useState<string>("all");
 
   const load = async () => {
@@ -157,6 +159,26 @@ export default function QuotesPage() {
                     </svg>
                   </button>
                 )}
+                {/* Generate contract */}
+                {["accepted", "invoiced"].includes(quote.status) && !quote.contractGenerated && (
+                  <button
+                    onClick={() => setContractQuote(quote)}
+                    title="Generate contract"
+                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </button>
+                )}
+                {/* Contract generated badge */}
+                {quote.contractGenerated && (
+                  <span title="Contract generated" className="p-1.5 text-green-500">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </span>
+                )}
                 {/* Mark paid */}
                 {["accepted", "invoiced"].includes(quote.status) && (
                   <button
@@ -180,6 +202,19 @@ export default function QuotesPage() {
           business={business}
           onClose={() => setShowCreate(false)}
           onCreated={() => { setShowCreate(false); load(); }}
+        />
+      )}
+
+      {contractQuote && business && (
+        <GenerateContractModal
+          businessId={business.id}
+          onClose={() => setContractQuote(null)}
+          prefill={{
+            clientName: contractQuote.clientName,
+            clientEmail: contractQuote.clientEmail ?? undefined,
+            scopeDescription: (contractQuote.services ?? []).map((s) => s.serviceName).join(", "),
+            paymentAmount: contractQuote.total,
+          }}
         />
       )}
       </div>

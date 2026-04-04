@@ -8,7 +8,9 @@ import {
   getFundingOpportunities, getGrowthActions,
 } from "@/services/business-graph";
 import { AILoadingScreen } from "@/components/ui/LoadingScreen";
-import { AIInsightBanner } from "@/components/dashboard/AIInsightBanner";
+import { BusinessHealthScore } from "@/components/dashboard/BusinessHealthScore";
+import { RevenuePipeline } from "@/components/dashboard/RevenuePipeline";
+import { TodaysPriorities } from "@/components/dashboard/TodaysPriorities";
 import { ProtectionQuadrant } from "@/components/dashboard/ProtectionQuadrant";
 import { ComplianceQuadrant } from "@/components/dashboard/ComplianceQuadrant";
 import { FinancesQuadrant } from "@/components/dashboard/FinancesQuadrant";
@@ -72,10 +74,16 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      {/* AI Insight Banner */}
-      <AIInsightBanner data={data} business={business} />
+      {/* Command Center — health score + pipeline side by side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <BusinessHealthScore data={data} business={business} />
+        <RevenuePipeline quotes={data.quotes} />
+      </div>
 
-      {/* 2x2 Quadrant Grid */}
+      {/* Today's Priorities — cross-feature action list */}
+      <TodaysPriorities data={data} business={business} />
+
+      {/* 2×2 Quadrant Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Link href="/dashboard/protection" className="block group">
           <ProtectionQuadrant contracts={data.contracts} />

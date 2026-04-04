@@ -65,14 +65,30 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
   const processFile = useCallback(async (file: File) => {
     setError(null);
     setStage("uploading");
-    setProgress(15);
+    setProgress(10);
 
     try {
+      const isImage = file.type.startsWith("image/");
+      const sendBase64 = isImage && file.size < 3 * 1024 * 1024;
+      const fileBase64 = sendBase64
+        ? await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = reader.result as string;
+              resolve(result.split(",")[1] ?? "");
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          })
+        : undefined;
+
+      // Upload first so we always have a durable blob URL for saving and for large-file analysis.
       const blobPath = buildBusinessBlobPath({
         businessId,
         folder: "receipts",
         fileName: file.name,
       });
+
       const uploadedBlob = await upload(blobPath, file, {
         access: "public",
         contentType: file.type,
@@ -84,32 +100,33 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
         }),
         multipart: file.size > 5 * 1024 * 1024,
         onUploadProgress: ({ percentage }) => {
-          setProgress(Math.max(15, Math.min(35, Math.round(percentage * 0.35))));
+          setProgress(Math.max(20, Math.min(40, 20 + Math.round(percentage * 0.2))));
         },
       });
-      setProgress(40);
+
+      setProgress(45);
       setStage("analyzing");
 
-      // Step 2: Analyze the extracted document text
       const analyzeRes = await fetch("/api/ai/analyze-receipt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          ...(fileBase64 ? { fileBase64 } : {}),
           fileUrl: uploadedBlob.url,
-          fileMimeType: uploadedBlob.contentType ?? file.type,
+          fileMimeType: file.type,
           businessId,
         }),
       });
+
       if (!analyzeRes.ok) {
         const err = await analyzeRes.json();
         throw new Error(err.error ?? "Analysis failed");
       }
 
       const data = await analyzeRes.json();
-      setProgress(80);
+      setProgress(100);
       setScanned({ ...data, imageUrl: uploadedBlob.url });
       setStage("done");
-      setProgress(100);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
       setStage("error");
@@ -150,7 +167,12 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
     onSaved();
   };
 
-  const reset = () => { setStage("idle"); setScanned(null); setError(null); setProgress(0); };
+  const reset = () => {
+    setStage("idle");
+    setScanned(null);
+    setError(null);
+    setProgress(0);
+  };
 
   if (stage === "uploading" || stage === "analyzing") {
     return (
@@ -191,7 +213,7 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
           ].map((row) => (
             <div key={row.label} className="bg-slate-50 rounded-lg p-2.5">
               <p className="text-xs text-slate-400">{row.label}</p>
-              <p className="text-sm font-medium text-slate-900 mt-0.5 capitalize">{row.value ?? "—"}</p>
+              <p className="text-sm font-medium text-slate-900 mt-0.5 capitalize">{row.value ?? "-"}</p>
             </div>
           ))}
         </div>
@@ -243,8 +265,8 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
         <p className="font-medium text-slate-700 mb-1">
           {isDragActive ? "Drop receipt here" : "Scan a receipt"}
         </p>
-        <p className="text-slate-400 text-sm">Take a photo or upload PDF/image · Max 20 MB</p>
-        <p className="text-xs text-slate-400 mt-2">AI extracts vendor, amount, date, and recommends tax category</p>
+        <p className="text-slate-400 text-sm">Take a photo or upload PDF/image - Max 100 MB</p>
+        <p className="text-xs text-slate-400 mt-2">Groq handles the analysis after text extraction, with OCR fallback when needed</p>
       </div>
       {error && (
         <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
@@ -255,8 +277,6 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
-
 export default function ReceiptsPage() {
   const { business } = useBusiness();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -265,8 +285,8 @@ export default function ReceiptsPage() {
 
   const loadReceipts = async () => {
     if (!business?.id) return;
-    const r = await getReceipts(business.id);
-    setReceipts(r);
+    const result = await getReceipts(business.id);
+    setReceipts(result);
     setLoading(false);
   };
 
@@ -285,14 +305,13 @@ export default function ReceiptsPage() {
     };
   }, [business]);
 
-  const filtered = filter === "all" ? receipts : receipts.filter((r) => r.category === filter);
+  const filtered = filter === "all" ? receipts : receipts.filter((receipt) => receipt.category === filter);
+  const ytdDeductible = receipts.reduce((sum, receipt) => sum + (receipt.deductibleAmount ?? receipt.amount), 0);
+  const ytdTotal = receipts.reduce((sum, receipt) => sum + receipt.amount, 0);
+  const mileageTotal = receipts.reduce((sum, receipt) => sum + (receipt.associatedMileage ?? 0), 0);
 
-  const ytdDeductible = receipts.reduce((s, r) => s + (r.deductibleAmount ?? r.amount), 0);
-  const ytdTotal = receipts.reduce((s, r) => s + r.amount, 0);
-  const mileageTotal = receipts.reduce((s, r) => s + (r.associatedMileage ?? 0), 0);
-
-  const categoryTotals = receipts.reduce<Record<string, number>>((acc, r) => {
-    acc[r.category] = (acc[r.category] ?? 0) + r.amount;
+  const categoryTotals = receipts.reduce<Record<string, number>>((acc, receipt) => {
+    acc[receipt.category] = (acc[receipt.category] ?? 0) + receipt.amount;
     return acc;
   }, {});
 
@@ -300,17 +319,19 @@ export default function ReceiptsPage() {
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5);
 
-  if (loading) return (
-    <div className="min-h-screen bg-slate-50">
-      <SiteNav />
-      <LoadingScreen
-        title="Loading receipts"
-        subtitle="Fetching your expense history"
-        steps={["Loading receipts", "Calculating deductions", "Summarizing categories"]}
-        variant="inline"
-      />
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <SiteNav />
+        <LoadingScreen
+          title="Loading receipts"
+          subtitle="Fetching your expense history"
+          steps={["Loading receipts", "Calculating deductions", "Summarizing categories"]}
+          variant="inline"
+        />
+      </div>
+    );
+  }
 
   if (!business) return null;
 
@@ -318,29 +339,26 @@ export default function ReceiptsPage() {
     <div className="min-h-screen bg-slate-50">
       <SiteNav />
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Receipt Scanner</h1>
           <p className="text-slate-500 text-sm mt-1">AI-powered expense categorization and tax analysis</p>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: "Total Receipts", value: receipts.length.toString() },
             { label: "Total Spent", value: `$${Math.round(ytdTotal).toLocaleString()}` },
             { label: "Deductible", value: `$${Math.round(ytdDeductible).toLocaleString()}` },
             { label: "Miles Tracked", value: mileageTotal.toLocaleString() },
-          ].map((s) => (
-            <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-              <p className="text-xl font-bold text-slate-900">{s.value}</p>
-              <p className="text-xs text-slate-400 mt-0.5">{s.label}</p>
+          ].map((stat) => (
+            <div key={stat.label} className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+              <p className="text-xl font-bold text-slate-900">{stat.value}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{stat.label}</p>
             </div>
           ))}
         </div>
 
         <div className="grid md:grid-cols-3 gap-6">
-          {/* Left column: uploader + top categories */}
           <div className="space-y-4">
             <ReceiptUploader businessId={business.id} onSaved={loadReceipts} />
 
@@ -348,11 +366,11 @@ export default function ReceiptsPage() {
               <div className="bg-white rounded-xl border border-slate-200 p-4">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Top Categories</p>
                 <div className="space-y-2">
-                  {topCategories.map(([cat, amount]) => (
-                    <div key={cat} className="flex items-center justify-between">
+                  {topCategories.map(([category, amount]) => (
+                    <div key={category} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${CATEGORY_COLORS[cat as ExpenseCategory] ?? "bg-slate-100 text-slate-500"}`}>
-                          {CATEGORY_LABELS[cat as ExpenseCategory] ?? cat}
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${CATEGORY_COLORS[category as ExpenseCategory] ?? "bg-slate-100 text-slate-500"}`}>
+                          {CATEGORY_LABELS[category as ExpenseCategory] ?? category}
                         </span>
                       </div>
                       <span className="text-sm font-medium text-slate-700">${Math.round(amount).toLocaleString()}</span>
@@ -363,9 +381,7 @@ export default function ReceiptsPage() {
             )}
           </div>
 
-          {/* Right column: receipt list */}
           <div className="md:col-span-2 space-y-3">
-            {/* Category filter */}
             <div className="flex gap-1 flex-wrap">
               <button
                 onClick={() => setFilter("all")}
@@ -375,53 +391,52 @@ export default function ReceiptsPage() {
               >
                 All ({receipts.length})
               </button>
-              {Object.keys(categoryTotals).map((cat) => (
+              {Object.keys(categoryTotals).map((category) => (
                 <button
-                  key={cat}
-                  onClick={() => setFilter(cat as ExpenseCategory)}
+                  key={category}
+                  onClick={() => setFilter(category as ExpenseCategory)}
                   className={`px-3 py-1 text-xs font-medium rounded-full capitalize transition-colors ${
-                    filter === cat ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    filter === category ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
-                  {CATEGORY_LABELS[cat as ExpenseCategory] ?? cat}
+                  {CATEGORY_LABELS[category as ExpenseCategory] ?? category}
                 </button>
               ))}
             </div>
 
-            {/* Receipt list */}
             {filtered.length === 0 ? (
               <div className="bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center">
                 <p className="text-slate-500 text-sm">
-                  {filter === "all" ? "No receipts yet. Scan your first one →" : `No ${filter} receipts.`}
+                  {filter === "all" ? "No receipts yet. Scan your first one ->" : `No ${filter} receipts.`}
                 </p>
               </div>
             ) : (
               <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
-                {filtered.map((r) => (
-                  <div key={r.id} className="flex items-center gap-3 px-4 py-3">
+                {filtered.map((receipt) => (
+                  <div key={receipt.id} className="flex items-center gap-3 px-4 py-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium text-slate-900 text-sm truncate">{r.vendor || "Unknown vendor"}</p>
-                        {r.needsMoreInfo && (
+                        <p className="font-medium text-slate-900 text-sm truncate">{receipt.vendor || "Unknown vendor"}</p>
+                        {receipt.needsMoreInfo && (
                           <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded font-medium">Review</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${CATEGORY_COLORS[r.category] ?? "bg-slate-100 text-slate-500"}`}>
-                          {CATEGORY_LABELS[r.category] ?? r.category}
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${CATEGORY_COLORS[receipt.category] ?? "bg-slate-100 text-slate-500"}`}>
+                          {CATEGORY_LABELS[receipt.category] ?? receipt.category}
                         </span>
-                        <span className="text-xs text-slate-400">{r.date}</span>
-                        {r.associatedMileage && r.associatedMileage > 0 && (
-                          <span className="text-xs text-slate-400">{r.associatedMileage} mi</span>
+                        <span className="text-xs text-slate-400">{receipt.date}</span>
+                        {receipt.associatedMileage && receipt.associatedMileage > 0 && (
+                          <span className="text-xs text-slate-400">{receipt.associatedMileage} mi</span>
                         )}
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="font-semibold text-slate-900 text-sm">${r.amount.toFixed(2)}</p>
-                      {r.deductibleAmount < r.amount && (
-                        <p className="text-xs text-green-600">${r.deductibleAmount.toFixed(2)} deductible</p>
+                      <p className="font-semibold text-slate-900 text-sm">${receipt.amount.toFixed(2)}</p>
+                      {receipt.deductibleAmount < receipt.amount && (
+                        <p className="text-xs text-green-600">${receipt.deductibleAmount.toFixed(2)} deductible</p>
                       )}
-                      {r.deductibleAmount >= r.amount && (
+                      {receipt.deductibleAmount >= receipt.amount && (
                         <p className="text-xs text-green-600">100% deductible</p>
                       )}
                     </div>
