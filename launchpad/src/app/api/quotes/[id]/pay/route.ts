@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe, hasStripeConfig } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
+    if (!hasStripeConfig()) {
+      return NextResponse.json(
+        { error: "Hosted Stripe payments are currently disabled" },
+        { status: 503 }
+      );
+    }
+
     const { businessId } = await req.json();
 
     const quote = await prisma.quote.findFirst({ where: { id, businessId } });
@@ -36,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: lineItems,
       mode: "payment",

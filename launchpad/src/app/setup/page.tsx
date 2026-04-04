@@ -46,7 +46,7 @@ export default function SetupPage() {
       color: "bg-purple-500",
       items: [
         { label: "Create a Plaid sandbox app and copy PLAID_CLIENT_ID / PLAID_SECRET" },
-        { label: "Create Stripe test keys if you want hosted payment links" },
+        { label: "Stripe is optional unless you want hosted payment links" },
       ],
     },
     {
@@ -71,9 +71,9 @@ export default function SetupPage() {
     { key: "GEMINI_API_KEY", source: "Google AI Studio API key" },
     { key: "PLAID_CLIENT_ID", source: "Plaid dashboard" },
     { key: "PLAID_SECRET", source: "Plaid dashboard" },
-    { key: "STRIPE_SECRET_KEY", source: "Stripe dashboard" },
+    { key: "STRIPE_SECRET_KEY", source: "Stripe dashboard (optional)" },
     { key: "NEXT_PUBLIC_APP_URL", source: "Usually http://localhost:3000 in local dev" },
-    { key: "STRIPE_WEBHOOK_SECRET", source: "Stripe webhook settings" },
+    { key: "STRIPE_WEBHOOK_SECRET", source: "Stripe webhook settings (optional)" },
     { key: "BLOB_READ_WRITE_TOKEN", source: "Vercel Blob store token" },
   ];
 
