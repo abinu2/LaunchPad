@@ -8,6 +8,6 @@ export const auth0 = new Auth0Client({
   domain: process.env.AUTH0_DOMAIN!,
   clientId: process.env.AUTH0_CLIENT_ID!,
   clientSecret: process.env.AUTH0_CLIENT_SECRET!,
-  appBaseUrl: process.env.AUTH0_BASE_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000",
+  appBaseUrl: process.env.AUTH0_BASE_URL!,
   secret: process.env.AUTH0_SECRET!,
 });
