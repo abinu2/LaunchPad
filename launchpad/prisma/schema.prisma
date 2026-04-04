@@ -14,8 +14,10 @@ model Business {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ─── Onboarding & Business Info ────────────────────────────────────────────
   businessName           String
   businessType           String   @default("")
+  businessDescription    String   @default("")
   naicsCode              String   @default("")
   entityType             String   @default("sole_prop")
   entityState            String   @default("")
@@ -23,12 +25,16 @@ model Business {
   formationDate          String?
   businessAddress        Json     @default("{}")
   operatingJurisdictions Json     @default("[]")
+
+  // ─── Owner/Personal Info ──────────────────────────────────────────────────
   ownerName              String   @default("")
   ownerEmail             String   @default("")
   ownerPhone             String   @default("")
   hasOtherJob            Boolean  @default(false)
   estimatedW2Income      Float?
   isFirstTimeBusiness    Boolean  @default(true)
+
+  // ─── Business Operations ──────────────────────────────────────────────────
   serviceTypes           Json     @default("[]")
   targetMarket           String   @default("residential")
   usesPersonalVehicle    Boolean  @default(false)
@@ -36,27 +42,33 @@ model Business {
   employeeCount          Int      @default(0)
   hasContractors         Boolean  @default(false)
   contractorCount        Int      @default(0)
+
+  // ─── Financial Snapshot (denormalized for fast dashboard reads) ───────────
+  monthlyRevenueAvg      Float    @default(0)
+  monthlyExpenseAvg      Float    @default(0)
+  profitMargin           Float    @default(0)
+  totalRevenueYTD        Float    @default(0)
+  totalExpensesYTD       Float    @default(0)
+  currentCashBalance     Float?
+  financialsUpdatedAt    DateTime?
+
+  // ─── Onboarding Progress ──────────────────────────────────────────────────
   onboardingStage        String   @default("idea")
   completedSteps         Json     @default("[]")
 
-  // Financials snapshot (denormalized for fast dashboard reads)
-  monthlyRevenueAvg    Float    @default(0)
-  monthlyExpenseAvg    Float    @default(0)
-  profitMargin         Float    @default(0)
-  totalRevenueYTD      Float    @default(0)
-  totalExpensesYTD     Float    @default(0)
-  currentCashBalance   Float?
-  financialsUpdatedAt  DateTime?
-
-  contracts            Contract[]
-  receipts             Receipt[]
-  quotes               Quote[]
-  complianceItems      ComplianceItem[]
-  fundingOpportunities FundingOpportunity[]
-  bankTransactions     BankTransaction[]
-  plaidConnections     PlaidConnection[]
-  growthActions        GrowthAction[]
-  uploadedFiles        UploadedFile[]
+  // ─── Relations ─────────────────────────────────────────────────────────────
+  contracts              Contract[]
+  receipts               Receipt[]
+  quotes                 Quote[]
+  complianceItems        ComplianceItem[]
+  fundingOpportunities   FundingOpportunity[]
+  bankTransactions       BankTransaction[]
+  plaidConnections       PlaidConnection[]
+  growthActions          GrowthAction[]
+  uploadedFiles          UploadedFile[]
+  taxSummaries           TaxSummary[]
+  profitAndLoss          ProfitAndLoss[]
+  expenseCategories      ExpenseCategory[]
 }
 
 // ─── Contracts ────────────────────────────────────────────────────────────────
@@ -94,6 +106,7 @@ model Receipt {
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   imageUrl           String
   vendor             String
@@ -259,6 +272,82 @@ model GrowthAction {
   urgency    String   @default("medium")
   effort     String   @default("medium")
   dismissed  Boolean  @default(false)
+}
+
+// ─── Tax Summaries ─────────────────────────────────────────────────────────────
+// Quarterly and annual tax calculations and estimates
+
+model TaxSummary {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  taxYear                Int
+  quarter                Int      // 1-4 for quarterly, 0 for annual
+  grossRevenue           Float    @default(0)
+  returnsAndAllowances   Float    @default(0)
+  netRevenue             Float    @default(0)
+  totalCOGS              Float    @default(0)
+  grossProfit            Float    @default(0)
+  totalExpenses          Float    @default(0)
+  mileageDeduction       Float    @default(0)
+  homeOfficeDeduction    Float    @default(0)
+  healthInsuranceDeduction Float  @default(0)
+  section199ADeduction   Float    @default(0)
+  totalDeductions        Float    @default(0)
+  netTaxableIncome       Float    @default(0)
+  estimatedFederalTax    Float    @default(0)
+  estimatedStateTax      Float    @default(0)
+  estimatedSelfEmploymentTax Float @default(0)
+  totalEstimatedTax      Float    @default(0)
+  quarterlyPayments      Json     @default("{}")
+  missedDeductions       Json     @default("[]")
+  taxSavingOpportunities Json     @default("[]")
+  expenseBreakdown       Json     @default("{}")
+}
+
+// ─── Profit & Loss ────────────────────────────────────────────────────────────
+// Monthly, quarterly, and annual P&L statements
+
+model ProfitAndLoss {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  period                String   // "monthly" | "quarterly" | "annual"
+  startDate             String
+  endDate               String
+  revenue               Float    @default(0)
+  cogs                  Float    @default(0)
+  grossProfit           Float    @default(0)
+  totalExpenses         Float    @default(0)
+  netProfit             Float    @default(0)
+  profitMargin          Float    @default(0)
+  expenseBreakdown      Json     @default("{}")
+  comparedToPreviousPeriod Json  @default("{}")
+}
+
+// ─── Expense Categories ───────────────────────────────────────────────────────
+// Track custom expense categories and their totals
+
+model ExpenseCategory {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  name               String
+  description        String   @default("")
+  isCustom           Boolean  @default(false)
+  isTaxDeductible    Boolean  @default(true)
+  monthlyTotal       Float    @default(0)
+  yearlyTotal        Float    @default(0)
+  lastUpdated        DateTime @default(now())
 }
 
 // ─── Uploaded Files ───────────────────────────────────────────────────────────
