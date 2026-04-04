@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useBusiness } from "@/context/BusinessContext";
 import { getComplianceItems, updateComplianceItem } from "@/services/business-graph";
-import { Spinner } from "@/components/ui/Spinner";
+import { AILoadingScreen } from "@/components/ui/LoadingScreen";
 import { Button } from "@/components/ui/Button";
 import type { ComplianceItem } from "@/types/compliance";
 
@@ -278,7 +278,7 @@ export default function CompliancePage() {
     }
   };
 
-  if (loading) return <div className="flex justify-center py-16"><Spinner /></div>;
+  if (loading) return <AILoadingScreen title="Loading compliance" steps={["Fetching requirements", "Checking deadlines", "Reviewing permit status"]} variant="inline" />;
 
   const compliant = items.filter((i) => i.status === "compliant").length;
   const overdue   = items.filter((i) => i.status === "overdue").length;

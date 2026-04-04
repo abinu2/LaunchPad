@@ -29,14 +29,16 @@ export default function SetupPage() {
     },
     {
       number: "3",
-      title: "Gemini API",
+      title: "Groq + Gemini",
       time: "2 min",
       color: "bg-green-500",
       items: [
+        { label: "Go to", link: "https://console.groq.com", linkText: "console.groq.com" },
+        { label: "Create a Groq API key and set GROQ_API_KEY for primary text analysis" },
         { label: "Go to", link: "https://aistudio.google.com/apikey", linkText: "aistudio.google.com/apikey" },
-        { label: "Create a Gemini API key in Google AI Studio" },
+        { label: "Create a Gemini API key in Google AI Studio for OCR fallback on image-heavy documents" },
         { label: "Set GEMINI_API_KEY in launchpad/.env.local" },
-        { label: "Optional: override GEMINI_MODEL or GEMINI_LONG_CONTEXT_MODEL if you want different defaults" },
+        { label: "Optional: override GROQ_MODEL, GEMINI_MODEL, or GEMINI_LONG_CONTEXT_MODEL" },
       ],
     },
     {
@@ -68,6 +70,7 @@ export default function SetupPage() {
     { key: "AUTH0_SECRET", source: "Generate a long random hex string" },
     { key: "AUTH0_BASE_URL", source: "Usually http://localhost:3000 in local dev" },
     { key: "DATABASE_URL", source: "PostgreSQL connection string for Prisma" },
+    { key: "GROQ_API_KEY", source: "Groq API key for primary contract and receipt analysis" },
     { key: "GEMINI_API_KEY", source: "Google AI Studio API key" },
     { key: "PLAID_CLIENT_ID", source: "Plaid dashboard" },
     { key: "PLAID_SECRET", source: "Plaid dashboard" },

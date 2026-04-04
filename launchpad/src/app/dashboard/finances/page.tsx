@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { PlaidConnectButton } from "@/components/plaid/PlaidConnectButton";
-import { Spinner } from "@/components/ui/Spinner";
+import { AILoadingScreen } from "@/components/ui/LoadingScreen";
 import { useBusiness } from "@/context/BusinessContext";
 import { summarizeBankCash, summarizeFinances } from "@/lib/finance";
 import { getBankTransactions, getPlaidConnections, getQuotes, getReceipts } from "@/services/business-graph";
@@ -97,7 +97,7 @@ export default function FinancesPage() {
     }
   };
 
-  if (loading) return <div className="flex justify-center py-16"><Spinner /></div>;
+  if (loading) return <AILoadingScreen title="Loading finances" steps={["Fetching transactions", "Loading quotes", "Calculating P&L"]} variant="inline" />;
 
   const finance = summarizeFinances(quotes, receipts);
   const bank = summarizeBankCash(bankTxs);

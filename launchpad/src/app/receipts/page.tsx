@@ -5,7 +5,7 @@ import { upload } from "@vercel/blob/client";
 import { useDropzone } from "react-dropzone";
 import { useBusiness } from "@/context/BusinessContext";
 import { getReceipts, addReceipt } from "@/services/business-graph";
-import { Spinner } from "@/components/ui/Spinner";
+import { AILoadingScreen, LoadingScreen } from "@/components/ui/LoadingScreen";
 import { SiteNav } from "@/components/ui/SiteNav";
 import type { Receipt, ExpenseCategory } from "@/types/financial";
 import {
@@ -90,7 +90,7 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
       setProgress(40);
       setStage("analyzing");
 
-      // Step 2: Analyze with Gemini
+      // Step 2: Analyze the extracted document text
       const analyzeRes = await fetch("/api/ai/analyze-receipt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -154,21 +154,21 @@ function ReceiptUploader({ businessId, onSaved }: { businessId: string; onSaved:
 
   if (stage === "uploading" || stage === "analyzing") {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
-        <Spinner size="lg" className="mx-auto mb-3" />
-        <p className="font-medium text-slate-700">
-          {stage === "uploading" ? "Uploading receipt..." : "Reading receipt with AI..."}
-        </p>
-        <div className="mt-4 h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-xs mx-auto">
-          <div
-            className="h-full bg-blue-500 rounded-full transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        {stage === "analyzing" && (
-          <p className="text-xs text-slate-400 mt-2">Extracting vendor, amount, category, and tax info...</p>
-        )}
-      </div>
+      <AILoadingScreen
+        title={stage === "uploading" ? "Uploading receipt" : "Reading receipt"}
+        steps={
+          stage === "uploading"
+            ? ["Securing file transfer", "Uploading to storage"]
+            : [
+                "Identifying vendor and amount",
+                "Extracting line items",
+                "Classifying expense category",
+                "Calculating tax deduction",
+              ]
+        }
+        progress={progress}
+        variant="inline"
+      />
     );
   }
 
@@ -303,7 +303,12 @@ export default function ReceiptsPage() {
   if (loading) return (
     <div className="min-h-screen bg-slate-50">
       <SiteNav />
-      <div className="flex justify-center py-20"><Spinner /></div>
+      <LoadingScreen
+        title="Loading receipts"
+        subtitle="Fetching your expense history"
+        steps={["Loading receipts", "Calculating deductions", "Summarizing categories"]}
+        variant="inline"
+      />
     </div>
   );
 

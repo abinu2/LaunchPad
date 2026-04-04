@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useBusiness } from "@/context/BusinessContext";
-import { Spinner } from "@/components/ui/Spinner";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { DashboardNav } from "@/components/dashboard/DashboardNav";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -20,9 +20,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (authLoading || bizLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" />
-      </div>
+      <LoadingScreen
+        title="Loading your dashboard"
+        subtitle="Fetching your business data"
+        steps={[
+          "Authenticating your session",
+          "Loading business profile",
+          "Preparing your workspace",
+        ]}
+      />
     );
   }
 

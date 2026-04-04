@@ -1,150 +1,97 @@
 /**
  * POST /api/ai/analyze-contract
  *
- * Body:
- *   fileUrl      - public URL of the uploaded contract
- *   fileName     - original filename
- *   fileType     - "pdf" | "docx" | "image"
- *   fileMimeType - exact MIME type (for example "application/pdf" or "image/jpeg")
- *   businessId   - Prisma business ID
+ * Strategy:
+ *   - Extract readable text from PDFs and images
+ *   - Prefer Groq for structured legal analysis
+ *   - Use Gemini only as OCR fallback when the document itself does not yield enough text
  *
- * Flow:
- *   1. Download the contract file
- *   2. Fetch existing contracts for cross-contract conflict detection
- *   3. Fetch business profile for context
- *   4. Send file bytes + context to Gemini as inline data
- *   5. Parse structured JSON response
- *   6. Persist the contract record with Prisma
- *   7. Return the saved contract with its new ID
+ * Body: { fileUrl, fileName, fileType, fileMimeType, businessId }
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
+import {
+  extractDocumentText,
+  generatePreferredJSON,
+  isSupportedDocumentMimeType,
+  normalizeDocumentMimeType,
+} from "@/lib/document-ai";
 import { fetchWithRetry } from "@/lib/fetch-file";
-import { generateJSONWithFile, LONG_CONTEXT_MODEL } from "@/lib/vertex-ai";
 import { prisma } from "@/lib/prisma";
 import { serializeContract } from "@/lib/serializers";
 import type { Contract, ContractAnalysis, ContractObligation } from "@/types/contract";
+import { LONG_CONTEXT_MODEL } from "@/lib/vertex-ai";
 
 export const maxDuration = 120;
 
-function buildPrompt(
-  fileType: string,
-  businessContext: string,
-  existingContractSummaries: string
-): string {
-  const fileNote =
-    fileType === "image"
-      ? "The contract is provided as an image. Read all visible text in the image carefully."
-      : "The contract is provided as a PDF document. Read and analyze all pages.";
-
-  return `
-You are an expert business attorney reviewing a contract on behalf of a small business owner.
-The business owner is NOT legally sophisticated - explain everything in plain English while being legally precise.
-
-${businessContext}
-
-EXISTING CONTRACTS IN VAULT (for conflict detection):
-${existingContractSummaries || "None yet."}
-
-CONTRACT TO ANALYZE:
-${fileNote}
-
-Analyze this contract thoroughly and return a single JSON object with EXACTLY this structure.
-Do not include any text outside the JSON.
-
-{
-  "summary": "2-3 sentence plain English summary of what this contract is and what it means for the business",
+const CONTRACT_JSON_SCHEMA = `{
+  "summary": "2-3 sentence plain English summary",
   "contractType": "service_agreement|vendor_agreement|lease|partnership|employment|financing|other",
   "counterpartyName": "Name of the other party",
   "effectiveDate": "YYYY-MM-DD or null",
   "expirationDate": "YYYY-MM-DD or null",
-  "autoRenews": true|false,
-  "autoRenewalDate": "YYYY-MM-DD or null - the date auto-renewal triggers",
-  "autoRenewalNoticePeriod": number_or_null,
-  "terminationNoticePeriod": number_or_null,
-  "totalValue": number_or_null,
-  "monthlyValue": number_or_null,
-  "healthScore": number_0_to_100,
+  "autoRenews": true or false,
+  "autoRenewalDate": "YYYY-MM-DD or null",
+  "autoRenewalNoticePeriod": number or null,
+  "terminationNoticePeriod": number or null,
+  "totalValue": number or null,
+  "monthlyValue": number or null,
+  "healthScore": number 0-100,
   "riskLevel": "low|medium|high|critical",
-  "clauses": [
-    {
-      "clauseNumber": "e.g. 7.3",
-      "clauseTitle": "e.g. Revenue Sharing",
-      "originalText": "Exact verbatim text of the clause",
-      "plainEnglish": "What this means in plain English, with dollar impact if applicable",
-      "riskLevel": "safe|caution|danger",
-      "issue": "What is wrong with this clause, or null if safe",
-      "recommendation": "What to do about it, or null if safe",
-      "businessImpact": "Dollar or operational impact estimate, or null",
-      "playbookClause": "The standard/preferred language for this clause type, or null"
-    }
-  ],
-  "missingProtections": [
-    "Description of a protection this contract should have but doesn't"
-  ],
-  "conflicts": [
-    {
-      "thisClause": "Clause reference in this contract",
-      "conflictingContractId": "ID from existing contracts list",
-      "conflictingContractName": "Name of the conflicting contract",
-      "conflictingClause": "Clause reference in the other contract",
-      "description": "Plain English description of the conflict",
-      "recommendation": "How to resolve it"
-    }
-  ],
-  "recommendations": [
-    "High-level recommendation specific to this business's situation"
-  ],
-  "estimatedAnnualCost": number_or_null,
-  "counterProposalDraft": "Complete redlined counter-proposal in professional legal language, or null if no changes needed",
-  "playbookDeviations": [
-    {
-      "clauseTitle": "Clause name",
-      "currentLanguage": "What the contract currently says",
-      "playbookLanguage": "What it should say",
-      "reason": "Why the change matters"
-    }
-  ],
-  "obligations": [
-    {
-      "clauseRef": "Clause number/title",
-      "description": "What must be done",
-      "party": "business|counterparty",
-      "triggerType": "date|event|threshold|recurring",
-      "triggerDescription": "When/what triggers this obligation",
-      "dueDate": "YYYY-MM-DD or null",
-      "recurringFrequency": "daily|weekly|monthly|quarterly|annual|null",
-      "status": "pending",
-      "monitoredField": null,
-      "monitoredThreshold": null,
-      "notes": null
-    }
-  ]
+  "clauses": [{"clauseNumber":"","clauseTitle":"","originalText":"","plainEnglish":"","riskLevel":"safe|caution|danger","issue":null,"recommendation":null,"businessImpact":null,"playbookClause":null}],
+  "missingProtections": ["string"],
+  "conflicts": [{"thisClause":"","conflictingContractId":"","conflictingContractName":"","conflictingClause":"","description":"","recommendation":""}],
+  "recommendations": ["string"],
+  "estimatedAnnualCost": number or null,
+  "counterProposalDraft": "string or null",
+  "playbookDeviations": [{"clauseTitle":"","currentLanguage":"","playbookLanguage":"","reason":""}],
+  "obligations": [{"clauseRef":"","description":"","party":"business|counterparty","triggerType":"date|event|threshold|recurring","triggerDescription":"","dueDate":null,"recurringFrequency":null,"status":"pending","monitoredField":null,"monitoredThreshold":null,"notes":null}]
+}`;
+
+function buildPrompt(contractText: string, businessContext: string, existingSummaries: string): string {
+  return `You are an expert business attorney reviewing a contract for a small business owner. Explain everything in plain English while being legally precise.
+
+${businessContext}
+
+EXISTING CONTRACTS (for conflict detection):
+${existingSummaries || "None."}
+
+CONTRACT TEXT:
+${contractText}
+
+Return ONLY a JSON object matching this exact schema. No markdown, no explanation:
+${CONTRACT_JSON_SCHEMA}
+
+RULES:
+- healthScore: 90-100=clean, 70-89=minor issues, 50-69=significant, <50=major problems
+- Flag personal guarantees, non-competes, one-sided indemnification, auto-renewals
+- Calculate dollar impact of problematic clauses against the business financials
+- counterProposalDraft: professional legal language the owner can send to counterparty`;
 }
 
-ANALYSIS RULES - apply all of these:
-- Calculate DOLLAR IMPACT of every problematic clause against the business's actual financials
-- Flag any non-compete clause - analyze geographic/temporal scope vs. actual operating area
-- Flag any personal guarantee language that pierces LLC protection
-- Flag auto-renewal terms - calculate cost of missing the cancellation window
-- Check insurance requirements in the contract vs. business's current coverage
-- Flag one-sided indemnification clauses
-- Check termination notice requirements for both parties
-- Flag unenforceable clauses under state law (for example overly broad non-competes)
-- healthScore: 90-100 = clean, 70-89 = minor issues, 50-69 = significant issues, below 50 = major problems
-- counterProposalDraft: use professional legal language - the owner will send this to the counterparty
-- Always include obligations for: payment terms, notice requirements, renewal/termination deadlines, insurance maintenance, reporting requirements
-`;
-}
-
-const SUPPORTED_MIME_TYPES = new Set([
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/heic",
-  "image/heif",
-]);
+type ContractAIResult = {
+  summary: string;
+  contractType: Contract["contractType"];
+  counterpartyName: string;
+  effectiveDate: string | null;
+  expirationDate: string | null;
+  autoRenews: boolean;
+  autoRenewalDate: string | null;
+  autoRenewalNoticePeriod: number | null;
+  terminationNoticePeriod: number | null;
+  totalValue: number | null;
+  monthlyValue: number | null;
+  healthScore: number;
+  riskLevel: ContractAnalysis["riskLevel"];
+  clauses: ContractAnalysis["clauses"];
+  missingProtections: string[];
+  conflicts: ContractAnalysis["conflicts"];
+  recommendations: string[];
+  estimatedAnnualCost: number | null;
+  counterProposalDraft: string | null;
+  playbookDeviations: ContractAnalysis["playbookDeviations"];
+  obligations: Omit<ContractObligation, "id" | "lastChecked">[];
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -154,21 +101,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "fileUrl and businessId are required" }, { status: 400 });
     }
 
-    if (fileType === "docx") {
-      return NextResponse.json(
-        { error: "DOCX files cannot be analyzed directly. Please convert your contract to PDF and re-upload." },
-        { status: 415 }
-      );
-    }
+    const normalizedMime = normalizeDocumentMimeType(fileMimeType || (fileType === "pdf" ? "application/pdf" : ""));
 
-    const normalizedMimeType = fileMimeType === "image/jpg" ? "image/jpeg" : fileMimeType;
-    const mimeType =
-      normalizedMimeType ??
-      (fileType === "pdf" ? "application/pdf" : fileType === "image" ? "image/jpeg" : null);
-
-    if (!mimeType || !SUPPORTED_MIME_TYPES.has(mimeType)) {
+    if (!isSupportedDocumentMimeType(normalizedMime)) {
       return NextResponse.json(
-        { error: `Unsupported file type for Gemini analysis: ${fileMimeType ?? fileType}` },
+        { error: "Unsupported file type. Upload a PDF or image (JPG, PNG, WEBP)." },
         { status: 415 }
       );
     }
@@ -176,9 +113,7 @@ export async function POST(req: NextRequest) {
     await requireBusinessAccess(businessId);
 
     const fileRes = await fetchWithRetry(fileUrl);
-
-    const fileBuffer = await fileRes.arrayBuffer();
-    const fileBase64 = Buffer.from(fileBuffer).toString("base64");
+    const fileBuffer = Buffer.from(await fileRes.arrayBuffer());
 
     const biz = await prisma.business.findUnique({ where: { id: businessId } });
     const serviceTypes =
@@ -191,75 +126,42 @@ export async function POST(req: NextRequest) {
 - Owner: ${biz.ownerName}
 - Monthly revenue: $${biz.monthlyRevenueAvg ?? 0}
 - Services: ${serviceTypes.map((s) => s.name).filter(Boolean).join(", ") || "n/a"}
-- Uses personal vehicle: ${biz.usesPersonalVehicle}
 - Has employees: ${biz.hasEmployees}`
       : "BUSINESS CONTEXT: Not available.";
 
     const existingContracts = await prisma.contract.findMany({
       where: { businessId, status: { in: ["active", "expiring_soon"] } },
     });
-
-    const existingContractSummaries = existingContracts
+    const existingSummaries = existingContracts
       .map((c: { id: string; counterpartyName: string; contractType: string; analysis: unknown }) => {
         const analysis = (c.analysis ?? {}) as { summary?: string };
-        return `ID: ${c.id} | ${c.counterpartyName} (${c.contractType}) | Key terms: ${analysis.summary ?? "N/A"}`;
+        return `ID: ${c.id} | ${c.counterpartyName} (${c.contractType}) | ${analysis.summary ?? "N/A"}`;
       })
       .join("\n");
 
-    const prompt = buildPrompt(fileType, businessContext, existingContractSummaries);
-    const ai = await generateJSONWithFile<{
-      summary: string;
-      contractType: Contract["contractType"];
-      counterpartyName: string;
-      effectiveDate: string | null;
-      expirationDate: string | null;
-      autoRenews: boolean;
-      autoRenewalDate: string | null;
-      autoRenewalNoticePeriod: number | null;
-      terminationNoticePeriod: number | null;
-      totalValue: number | null;
-      monthlyValue: number | null;
-      healthScore: number;
-      riskLevel: ContractAnalysis["riskLevel"];
-      clauses: ContractAnalysis["clauses"];
-      missingProtections: string[];
-      conflicts: ContractAnalysis["conflicts"];
-      recommendations: string[];
-      estimatedAnnualCost: number | null;
-      counterProposalDraft: string | null;
-      playbookDeviations: ContractAnalysis["playbookDeviations"];
-      obligations: Omit<ContractObligation, "id" | "lastChecked">[];
-    }>(prompt, { data: fileBase64, mimeType }, LONG_CONTEXT_MODEL);
+    const contractText = await extractDocumentText(fileBuffer, normalizedMime, {
+      minCharacters: 50,
+      preferOcr: false,
+    });
+    const prompt = buildPrompt(contractText, businessContext, existingSummaries);
+    const ai = await generatePreferredJSON<ContractAIResult>(prompt, {
+      geminiModel: LONG_CONTEXT_MODEL,
+    });
 
     const now = new Date();
     let status: Contract["status"] = "active";
     if (ai.expirationDate) {
       const exp = new Date(ai.expirationDate);
-      const daysUntilExp = Math.ceil((exp.getTime() - now.getTime()) / 86400000);
-      if (daysUntilExp < 0) status = "expired";
-      else if (daysUntilExp <= 30) status = "expiring_soon";
+      const days = Math.ceil((exp.getTime() - now.getTime()) / 86400000);
+      if (days < 0) status = "expired";
+      else if (days <= 30) status = "expiring_soon";
     }
 
-    const obligations: ContractObligation[] = (ai.obligations ?? []).map((o, i) => ({
-      ...o,
-      id: `obl_${Date.now()}_${i}`,
+    const obligations: ContractObligation[] = (ai.obligations ?? []).map((obligation, index) => ({
+      ...obligation,
+      id: `obl_${Date.now()}_${index}`,
       lastChecked: new Date().toISOString(),
     }));
-
-    const analysisJson = JSON.parse(
-      JSON.stringify({
-        summary: ai.summary,
-        riskLevel: ai.riskLevel,
-        clauses: ai.clauses,
-        missingProtections: ai.missingProtections,
-        conflicts: ai.conflicts,
-        recommendations: ai.recommendations,
-        estimatedAnnualCost: ai.estimatedAnnualCost,
-        counterProposalDraft: ai.counterProposalDraft,
-        playbookDeviations: ai.playbookDeviations,
-      })
-    );
-    const obligationsJson = JSON.parse(JSON.stringify(obligations));
 
     const contract = await prisma.contract.create({
       data: {
@@ -267,20 +169,32 @@ export async function POST(req: NextRequest) {
         fileName: fileName ?? "contract",
         fileUrl,
         fileType: fileType ?? "pdf",
-        contractType: ai.contractType,
-        counterpartyName: ai.counterpartyName,
-        effectiveDate: ai.effectiveDate,
-        expirationDate: ai.expirationDate,
-        autoRenews: ai.autoRenews,
-        autoRenewalDate: ai.autoRenewalDate,
-        autoRenewalNoticePeriod: ai.autoRenewalNoticePeriod,
-        terminationNoticePeriod: ai.terminationNoticePeriod,
-        totalValue: ai.totalValue,
-        monthlyValue: ai.monthlyValue,
-        healthScore: ai.healthScore,
+        contractType: ai.contractType ?? "other",
+        counterpartyName: ai.counterpartyName ?? "Unknown",
+        effectiveDate: ai.effectiveDate ?? null,
+        expirationDate: ai.expirationDate ?? null,
+        autoRenews: ai.autoRenews ?? false,
+        autoRenewalDate: ai.autoRenewalDate ?? null,
+        autoRenewalNoticePeriod: ai.autoRenewalNoticePeriod ?? null,
+        terminationNoticePeriod: ai.terminationNoticePeriod ?? null,
+        totalValue: ai.totalValue ?? null,
+        monthlyValue: ai.monthlyValue ?? null,
+        healthScore: ai.healthScore ?? 75,
         status,
-        analysis: analysisJson,
-        obligations: obligationsJson,
+        analysis: JSON.parse(
+          JSON.stringify({
+            summary: ai.summary,
+            riskLevel: ai.riskLevel,
+            clauses: ai.clauses ?? [],
+            missingProtections: ai.missingProtections ?? [],
+            conflicts: ai.conflicts ?? [],
+            recommendations: ai.recommendations ?? [],
+            estimatedAnnualCost: ai.estimatedAnnualCost,
+            counterProposalDraft: ai.counterProposalDraft,
+            playbookDeviations: ai.playbookDeviations ?? [],
+          })
+        ),
+        obligations: JSON.parse(JSON.stringify(obligations)),
       },
     });
 
@@ -288,13 +202,14 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("analyze-contract error:", err);
     const message = err instanceof Error ? err.message : "Contract analysis failed";
-    // Surface config errors directly so they're actionable
     const isConfig =
       message.includes("API_KEY") ||
-      message.includes("CONNECTION_STRING") ||
       message.includes("BLOB_READ_WRITE_TOKEN") ||
-      message.includes("Unauthorized") ||
-      message.includes("Forbidden");
-    return NextResponse.json({ error: isConfig ? message : "Contract analysis failed — please try again" }, { status: 500 });
+      message.includes("GROQ_API_KEY") ||
+      message.includes("GEMINI_API_KEY");
+    return NextResponse.json(
+      { error: isConfig ? message : "Contract analysis failed - please try again" },
+      { status: 500 }
+    );
   }
 }

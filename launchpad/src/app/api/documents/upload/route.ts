@@ -7,6 +7,8 @@ import {
   isAllowedDocumentUploadType,
 } from "@/lib/blob-upload";
 
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();
@@ -24,7 +26,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unsupported file type" }, { status: 415 });
     }
     if (file.size > DOCUMENT_UPLOAD_MAX_BYTES) {
-      return NextResponse.json({ error: "File exceeds 20 MB limit" }, { status: 413 });
+      return NextResponse.json({ error: "File exceeds 100 MB limit" }, { status: 413 });
     }
 
     const blobPath = buildBusinessBlobPath({ businessId, folder, fileName: file.name });

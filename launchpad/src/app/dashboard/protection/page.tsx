@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useBusiness } from "@/context/BusinessContext";
 import { getContracts } from "@/services/business-graph";
-import { Spinner } from "@/components/ui/Spinner";
+import { AILoadingScreen } from "@/components/ui/LoadingScreen";
 import type { Contract } from "@/types/contract";
 
 const riskColors = {
@@ -32,7 +32,7 @@ export default function ProtectionPage() {
     getContracts(business.id).then(setContracts).finally(() => setLoading(false));
   }, [business?.id]);
 
-  if (loading) return <div className="flex justify-center py-16"><Spinner /></div>;
+  if (loading) return <AILoadingScreen title="Loading contracts" steps={["Fetching contracts", "Checking expiry dates", "Scanning obligations"]} variant="inline" />;
 
   const upcoming = contracts
     .filter((c) => c.autoRenewalDate || c.expirationDate)

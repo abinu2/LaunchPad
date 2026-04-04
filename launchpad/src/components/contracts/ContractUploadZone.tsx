@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { upload } from "@vercel/blob/client";
 import { useDropzone } from "react-dropzone";
-import { Spinner } from "@/components/ui/Spinner";
+import { AILoadingScreen } from "@/components/ui/LoadingScreen";
 import {
   buildBusinessBlobPath,
   DOCUMENT_UPLOAD_MAX_BYTES,
@@ -24,13 +24,6 @@ const ACCEPTED = {
   "image/jpeg": [".jpg", ".jpeg"],
   "image/png": [".png"],
   "image/webp": [".webp"],
-};
-
-const STAGE_MESSAGES: Record<Stage, string> = {
-  idle: "",
-  uploading: "Uploading document...",
-  analyzing: "Reading contract... Analyzing clauses... Checking for conflicts...",
-  error: "",
 };
 
 export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) {
@@ -67,7 +60,7 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
         setProgress(40);
         setStage("analyzing");
 
-        // Step 2: Analyze with Gemini
+        // Step 2: Analyze the extracted contract text
         const fileType = file.type.includes("pdf")
           ? "pdf"
           : file.type.includes("word")
@@ -128,19 +121,22 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
       </div>
 
       {isProcessing ? (
-        <div className="py-10 text-center">
-          <Spinner size="lg" className="mx-auto mb-4" />
-          <p className="text-slate-700 font-medium">{STAGE_MESSAGES[stage]}</p>
-          <div className="mt-4 h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-xs mx-auto">
-            <div
-              className="h-full bg-blue-500 rounded-full transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <p className="text-xs text-slate-400 mt-3">
-            {stage === "analyzing" ? "This takes 20–40 seconds for a thorough analysis." : ""}
-          </p>
-        </div>
+        <AILoadingScreen
+          title={stage === "uploading" ? "Uploading contract" : "Analyzing contract"}
+          steps={
+            stage === "uploading"
+              ? ["Securing file transfer", "Uploading to Vercel Blob", "Preparing for analysis"]
+              : [
+                  "Reading all pages and clauses",
+                  "Identifying risk factors",
+                  "Checking for conflicts with existing contracts",
+                  "Drafting counter-proposal",
+                  "Calculating health score",
+                ]
+          }
+          progress={progress}
+          variant="inline"
+        />
       ) : (
         <>
           <div
@@ -160,7 +156,7 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
             <p className="text-slate-700 font-medium mb-1">
               {isDragActive ? "Drop it here" : "Drag & drop or click to upload"}
             </p>
-            <p className="text-slate-400 text-sm">PDF or image (JPG, PNG, WEBP) · Max 20 MB</p>
+            <p className="text-slate-400 text-sm">PDF or image (JPG, PNG, WEBP) · Max 50 MB</p>
           </div>
 
           {error && (
@@ -170,7 +166,7 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
           )}
 
           <p className="text-xs text-slate-400 mt-3 text-center">
-            Gemini reads the full contract and produces a clause-by-clause analysis, risk score, and counter-proposal draft.
+            Groq handles the contract review after text extraction. OCR is used only when a document needs help yielding readable text.
           </p>
         </>
       )}

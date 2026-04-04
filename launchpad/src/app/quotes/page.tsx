@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useBusiness } from "@/context/BusinessContext";
 import { getQuotes, updateQuote } from "@/services/business-graph";
-import { Spinner } from "@/components/ui/Spinner";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { QuoteCreateModal } from "@/components/quotes/QuoteCreateModal";
 import { SiteNav } from "@/components/ui/SiteNav";
 import type { Quote } from "@/types/quote";
@@ -53,7 +53,12 @@ export default function QuotesPage() {
   if (loading) return (
     <div className="min-h-screen bg-slate-50">
       <SiteNav />
-      <div className="flex justify-center py-16"><Spinner /></div>
+      <LoadingScreen
+        title="Loading quotes"
+        subtitle="Fetching your quote pipeline"
+        steps={["Loading quotes", "Calculating revenue", "Checking follow-ups"]}
+        variant="inline"
+      />
     </div>
   );
 

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useBusiness } from "@/context/BusinessContext";
 import { getReceipts, getQuotes } from "@/services/business-graph";
 import { summarizeFinances } from "@/lib/finance";
-import { Spinner } from "@/components/ui/Spinner";
+import { AILoadingScreen } from "@/components/ui/LoadingScreen";
 import type { Receipt } from "@/types/financial";
 import type { Quote } from "@/types/quote";
 import type { TaxAIResult, MissedDeduction } from "@/app/api/ai/analyze-taxes/route";
@@ -394,9 +394,11 @@ export default function TaxesPage() {
 
   if (!business || loading) {
     return (
-      <div className="flex justify-center py-20">
-        <Spinner />
-      </div>
+      <AILoadingScreen
+        title="Loading tax intelligence"
+        steps={["Fetching receipts", "Loading transactions", "Calculating deductions"]}
+        variant="inline"
+      />
     );
   }
 
@@ -429,7 +431,7 @@ export default function TaxesPage() {
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors"
         >
           {aiLoading ? (
-            <><Spinner size="sm" className="text-white" /> Analyzing...</>
+            <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block" /> Analyzing...</>
           ) : (
             <>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -566,11 +568,17 @@ export default function TaxesPage() {
           )}
 
           {aiLoading && (
-            <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-              <Spinner size="lg" className="mx-auto mb-4" />
-              <p className="text-slate-700 font-medium">Scanning your receipts and transactions...</p>
-              <p className="text-slate-400 text-sm mt-1">This takes 20–40 seconds for a thorough analysis</p>
-            </div>
+            <AILoadingScreen
+              title="Scanning your expenses"
+              steps={[
+                "Reading all receipts",
+                "Analyzing bank transactions",
+                "Finding missed deductions",
+                "Checking for mis-categorized expenses",
+                "Calculating potential savings",
+              ]}
+              variant="inline"
+            />
           )}
 
           {aiError && (

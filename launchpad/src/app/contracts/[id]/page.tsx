@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useBusiness } from "@/context/BusinessContext";
 import { getContract, updateContract, updateContractObligations, deleteContract } from "@/services/business-graph";
-import { Spinner } from "@/components/ui/Spinner";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ClauseAccordion } from "@/components/contracts/ClauseAccordion";
@@ -131,9 +131,11 @@ export default function ContractDetailPage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <Spinner size="lg" />
-    </div>
+    <LoadingScreen
+      title="Loading contract"
+      subtitle="Fetching analysis and obligations"
+      steps={["Loading contract details", "Preparing clause analysis", "Loading obligation tracker"]}
+    />
   );
 
   if (!contract) return (

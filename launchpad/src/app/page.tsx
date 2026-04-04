@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useBusiness } from "@/context/BusinessContext";
-import { Spinner } from "@/components/ui/Spinner";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 
 export default function RootPage() {
   const { user, loading: authLoading } = useAuth();
@@ -23,8 +23,10 @@ export default function RootPage() {
   }, [user, business, authLoading, bizLoading, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Spinner size="lg" />
-    </div>
+    <LoadingScreen
+      title="Starting Launchpad"
+      subtitle="Getting everything ready for you"
+      steps={["Verifying your session", "Loading your business", "Preparing dashboard"]}
+    />
   );
 }

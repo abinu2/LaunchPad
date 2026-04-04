@@ -11,7 +11,7 @@ import {
   updateFundingOpportunity,
   type GrowthAction,
 } from "@/services/business-graph";
-import { Spinner } from "@/components/ui/Spinner";
+import { AILoadingScreen } from "@/components/ui/LoadingScreen";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import type { FundingOpportunity } from "@/types/compliance";
@@ -222,7 +222,7 @@ export default function GrowthPage() {
     setSelectedOpp(null);
   };
 
-  if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
+  if (loading) return <AILoadingScreen title="Loading growth data" steps={["Fetching opportunities", "Loading growth actions", "Analyzing revenue trends"]} variant="inline" />;
   if (!data || !business) return null;
 
   const milestones = computeMilestones(business, data.quotes);

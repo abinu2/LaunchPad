@@ -7,7 +7,7 @@ import {
   getContracts, getComplianceItems, getQuotes, getReceipts,
   getFundingOpportunities, getGrowthActions,
 } from "@/services/business-graph";
-import { Spinner } from "@/components/ui/Spinner";
+import { AILoadingScreen } from "@/components/ui/LoadingScreen";
 import { AIInsightBanner } from "@/components/dashboard/AIInsightBanner";
 import { ProtectionQuadrant } from "@/components/dashboard/ProtectionQuadrant";
 import { ComplianceQuadrant } from "@/components/dashboard/ComplianceQuadrant";
@@ -55,9 +55,16 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <Spinner size="lg" />
-      </div>
+      <AILoadingScreen
+        title="Loading your dashboard"
+        steps={[
+          "Fetching contracts and obligations",
+          "Checking compliance status",
+          "Loading financial data",
+          "Scanning growth opportunities",
+        ]}
+        variant="inline"
+      />
     );
   }
 

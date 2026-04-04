@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useBusiness } from "@/context/BusinessContext";
 import { createBusiness, addComplianceItem } from "@/services/business-graph";
-import { Spinner } from "@/components/ui/Spinner";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { Button } from "@/components/ui/Button";
 import { OnboardingChat } from "@/components/onboarding/OnboardingChat";
 import { OnboardingResults } from "@/components/onboarding/OnboardingResults";
@@ -105,17 +105,17 @@ export default function OnboardingPage() {
 
   if (stage === "processing") {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="text-center">
-          <Spinner size="lg" />
-          <p className="mt-4 text-slate-700 font-medium">Analyzing your business...</p>
-          <div className="mt-3 space-y-1 text-sm text-slate-500">
-            <p>Checking entity requirements for your state</p>
-            <p>Mapping compliance obligations</p>
-            <p>Building your formation checklist</p>
-          </div>
-        </div>
-      </div>
+      <LoadingScreen
+        title="Building your business plan"
+        subtitle="Gemini is analyzing your answers"
+        steps={[
+          "Checking entity requirements for your state",
+          "Mapping compliance obligations",
+          "Identifying licenses and permits",
+          "Building your formation checklist",
+          "Drafting your first contract template",
+        ]}
+      />
     );
   }
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useBusiness } from "@/context/BusinessContext";
 import { getContracts } from "@/services/business-graph";
-import { Spinner } from "@/components/ui/Spinner";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { Badge } from "@/components/ui/Badge";
 import { ContractUploadZone } from "@/components/contracts/ContractUploadZone";
 import { GenerateContractModal } from "@/components/contracts/GenerateContractModal";
@@ -131,9 +131,11 @@ export default function ContractsPage() {
     .reduce((s, c) => s + (c.monthlyValue ?? 0), 0);
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <Spinner size="lg" />
-    </div>
+    <LoadingScreen
+      title="Loading contracts"
+      subtitle="Fetching your contract vault"
+      steps={["Loading contracts", "Checking expiration dates", "Scanning obligations"]}
+    />
   );
 
   return (

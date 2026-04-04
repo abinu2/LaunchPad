@@ -9,8 +9,12 @@ let geminiClient: GoogleGenAI | null = null;
 export const DEFAULT_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
 export const LONG_CONTEXT_MODEL = process.env.GEMINI_LONG_CONTEXT_MODEL ?? DEFAULT_MODEL;
 
+export function isGeminiConfigured() {
+  return Boolean(process.env.GEMINI_API_KEY);
+}
+
 function getGeminiClient() {
-  if (!process.env.GEMINI_API_KEY) {
+  if (!isGeminiConfigured()) {
     throw new Error("GEMINI_API_KEY is not set");
   }
 
@@ -102,4 +106,25 @@ export async function generateJSONWithFile<T>(
   } catch {
     throw new Error(`Gemini returned invalid JSON: ${cleaned.slice(0, 200)}`);
   }
+}
+
+export async function generateTextWithFile(
+  prompt: string,
+  fileData: { data: string; mimeType: string },
+  modelName: string = LONG_CONTEXT_MODEL
+): Promise<string> {
+  const response = await getGeminiClient().models.generateContent({
+    model: modelName,
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { text: prompt },
+          { inlineData: fileData },
+        ],
+      },
+    ],
+  });
+
+  return requireModelText(response.text, modelName);
 }
