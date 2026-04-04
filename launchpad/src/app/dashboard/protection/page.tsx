@@ -68,15 +68,16 @@ export default function ProtectionPage() {
               return upcoming.map((c) => {
                 const date = c.autoRenewalDate ?? c.expirationDate;
                 const days = date ? Math.ceil((new Date(date).getTime() - now.getTime()) / 86400000) : null;
-              return (
-                <div key={c.id} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-700">{c.counterpartyName}</span>
-                  <span className={`text-xs font-medium ${days !== null && days <= 14 ? "text-red-600" : "text-slate-500"}`}>
-                    {c.autoRenewalDate ? "Auto-renews" : "Expires"} {days !== null ? `in ${days}d` : date}
-                  </span>
-                </div>
-              );
-            })}
+                return (
+                  <div key={c.id} className="flex items-center justify-between text-sm">
+                    <span className="text-slate-700">{c.counterpartyName}</span>
+                    <span className={`text-xs font-medium ${days !== null && days <= 14 ? "text-red-600" : "text-slate-500"}`}>
+                      {c.autoRenewalDate ? "Auto-renews" : "Expires"} {days !== null ? `in ${days}d` : date}
+                    </span>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
       )}
