@@ -5,6 +5,9 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 
+// Disable static prerendering for this page since it requires Auth0 context
+export const dynamic = "force-dynamic";
+
 export default function LoginPage() {
   const { user, loading } = useAuth();
   const router = useRouter();

@@ -8,6 +8,9 @@ import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { Button } from "@/components/ui/Button";
 import type { Quote } from "@/types/quote";
 
+// Disable static prerendering for this page since it requires Auth0 context
+export const dynamic = "force-dynamic";
+
 export default function QuoteDetailPage() {
   const params = useParams();
   const router = useRouter();

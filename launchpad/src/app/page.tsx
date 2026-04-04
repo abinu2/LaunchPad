@@ -6,6 +6,9 @@ import { useAuth } from "@/context/AuthContext";
 import { useBusiness } from "@/context/BusinessContext";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 
+// Disable static prerendering for this page since it requires Auth0 context
+export const dynamic = "force-dynamic";
+
 export default function RootPage() {
   const { user, loading: authLoading } = useAuth();
   const { business, loading: bizLoading } = useBusiness();

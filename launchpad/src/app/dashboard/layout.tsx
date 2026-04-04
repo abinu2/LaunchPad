@@ -7,6 +7,9 @@ import { useBusiness } from "@/context/BusinessContext";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { DashboardNav } from "@/components/dashboard/DashboardNav";
 
+// Disable static prerendering for this layout since it requires Auth0 context
+export const dynamic = "force-dynamic";
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const { business, loading: bizLoading } = useBusiness();

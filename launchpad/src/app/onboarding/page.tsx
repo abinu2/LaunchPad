@@ -11,6 +11,9 @@ import { OnboardingChat } from "@/components/onboarding/OnboardingChat";
 import { OnboardingResults } from "@/components/onboarding/OnboardingResults";
 import { OnboardingAnswers, OnboardingResult } from "@/types/onboarding";
 
+// Disable static prerendering for this page since it requires Auth0 context
+export const dynamic = "force-dynamic";
+
 type Stage = "intro" | "chat" | "processing" | "results";
 
 export default function OnboardingPage() {
