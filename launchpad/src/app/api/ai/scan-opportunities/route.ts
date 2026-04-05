@@ -2,6 +2,7 @@
  * POST /api/ai/scan-opportunities
  * Scans for funding opportunities, pricing optimizations, and expense reductions
  * specific to this business. Persists results to Firestore.
+ * Uses streaming to avoid Vercel timeout limits.
  *
  * Body: { businessId: string }
  */
@@ -14,7 +15,6 @@ import type { Prisma } from "@prisma/client/index.js";
 
 // Skip prerendering for this API route
 export const dynamic = "force-dynamic";
-export const maxDuration = 10;
 
 interface FundingOpportunityRaw {
   name: string;
@@ -108,14 +108,14 @@ BUSINESS PROFILE:
 - Type: ${biz.businessType}
 - Entity: ${biz.entityType} in ${biz.entityState}
 - City: ${businessAddress.city ?? ""}, County: ${businessAddress.county ?? ""}
-- Annual revenue: $${annualRevenue}
-- Monthly revenue avg: $${biz.monthlyRevenueAvg ?? 0}
+- Annual revenue: ${annualRevenue}
+- Monthly revenue avg: ${biz.monthlyRevenueAvg ?? 0}
 - Months operating: ${monthsOperating}
 - Has employees: ${biz.hasEmployees}
 - Is minority/woman/veteran owned: unknown (assume eligible for general programs)
 - Quote acceptance rate: ${acceptanceRate !== null ? acceptanceRate + "%" : "unknown"}
-- Services: ${serviceTypes.map((s) => `${s.name ?? "Service"} ($${s.basePrice ?? 0})`).join(", ")}
-- Top expense categories: ${Object.entries(expenseByCategory).sort(([,a],[,b]) => b-a).slice(0,5).map(([k,v]) => `${k}: $${Math.round(v)}`).join(", ")}
+- Services: ${serviceTypes.map((s) => `${s.name ?? "Service"} (${s.basePrice ?? 0})`).join(", ")}
+- Top expense categories: ${Object.entries(expenseByCategory).sort(([,a],[,b]) => b-a).slice(0,5).map(([k,v]) => `${k}: ${Math.round(v)}`).join(", ")}
 
 TASK 1 — FUNDING OPPORTUNITIES:
 Search for real, currently available funding opportunities this business qualifies for. Include:
@@ -178,79 +178,102 @@ Return a JSON object with this exact structure:
   ]
 }`;
 
-    const result = isGroqConfigured()
-      ? await groqJSON<{
-          fundingOpportunities: FundingOpportunityRaw[];
-          pricingRecommendations: PricingRecommendation[];
-          expenseSavings: ExpenseSaving[];
-        }>(prompt)
-      : await generateJSON<{
-          fundingOpportunities: FundingOpportunityRaw[];
-          pricingRecommendations: PricingRecommendation[];
-          expenseSavings: ExpenseSaving[];
-        }>(prompt);
+    // Use streaming to avoid timeout
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const result = isGroqConfigured()
+            ? await groqJSON<{
+                fundingOpportunities: FundingOpportunityRaw[];
+                pricingRecommendations: PricingRecommendation[];
+                expenseSavings: ExpenseSaving[];
+              }>(prompt)
+            : await generateJSON<{
+                fundingOpportunities: FundingOpportunityRaw[];
+                pricingRecommendations: PricingRecommendation[];
+                expenseSavings: ExpenseSaving[];
+              }>(prompt);
 
-    // Persist funding opportunities — replace existing discovered ones
-    await prisma.fundingOpportunity.deleteMany({
-      where: { businessId, status: "discovered" },
+          // Persist funding opportunities — replace existing discovered ones
+          await prisma.fundingOpportunity.deleteMany({
+            where: { businessId, status: "discovered" },
+          });
+
+          await prisma.fundingOpportunity.createMany({
+            data: (result.fundingOpportunities ?? []).map((op) => ({
+              businessId,
+              name: op.name,
+              provider: op.provider,
+              type: op.type,
+              amountMin: op.amount.min,
+              amountMax: op.amount.max,
+              interestRate: op.interestRate,
+              repaymentTerms: op.repaymentTerms,
+              eligibilityMatch: op.eligibilityMatch,
+              eligibilityCriteria: op.eligibilityCriteria as unknown as Prisma.InputJsonValue,
+              applicationUrl: op.applicationUrl,
+              applicationDeadline: op.applicationDeadline,
+              status: "discovered",
+              applicationProgress: 0,
+              prefilledFields: buildPrefilledFields(biz) as Prisma.InputJsonValue,
+              fitScore: op.fitScore,
+              recommendation: op.recommendation,
+              estimatedTimeToApply: op.estimatedTimeToApply,
+            })),
+          });
+
+          await prisma.growthAction.deleteMany({
+            where: { businessId, type: { in: ["pricing", "expense"] } },
+          });
+
+          await prisma.growthAction.createMany({
+            data: [
+              ...(result.pricingRecommendations ?? []).map((rec) => ({
+                businessId,
+                type: "pricing",
+                title: `Raise ${rec.serviceName} price from ${rec.currentPrice} to ${rec.suggestedPrice}`,
+                impact: `+${rec.estimatedAnnualImpact.toLocaleString()}/year`,
+                reasoning: rec.reasoning,
+                urgency: "medium",
+                effort: "low",
+                dismissed: false,
+              })),
+              ...(result.expenseSavings ?? []).map((saving) => ({
+                businessId,
+                type: "expense",
+                title: saving.description,
+                impact: `-${saving.estimatedAnnualSaving.toLocaleString()}/year in ${saving.category}`,
+                reasoning: saving.action,
+                urgency: "low",
+                effort: "medium",
+                dismissed: false,
+              })),
+            ],
+          });
+
+          controller.enqueue(encoder.encode(JSON.stringify({
+            fundingCount: result.fundingOpportunities?.length ?? 0,
+            pricingCount: result.pricingRecommendations?.length ?? 0,
+            expenseCount: result.expenseSavings?.length ?? 0,
+          })));
+          controller.close();
+        } catch (err) {
+          console.error("scan-opportunities error:", err);
+          controller.enqueue(encoder.encode(JSON.stringify({ 
+            error: "Scan failed - ensure Groq API is configured",
+            details: err instanceof Error ? err.message : "Unknown error"
+          })));
+          controller.close();
+        }
+      },
     });
 
-    await prisma.fundingOpportunity.createMany({
-      data: (result.fundingOpportunities ?? []).map((op) => ({
-        businessId,
-        name: op.name,
-        provider: op.provider,
-        type: op.type,
-        amountMin: op.amount.min,
-        amountMax: op.amount.max,
-        interestRate: op.interestRate,
-        repaymentTerms: op.repaymentTerms,
-        eligibilityMatch: op.eligibilityMatch,
-        eligibilityCriteria: op.eligibilityCriteria as unknown as Prisma.InputJsonValue,
-        applicationUrl: op.applicationUrl,
-        applicationDeadline: op.applicationDeadline,
-        status: "discovered",
-        applicationProgress: 0,
-        prefilledFields: buildPrefilledFields(biz) as Prisma.InputJsonValue,
-        fitScore: op.fitScore,
-        recommendation: op.recommendation,
-        estimatedTimeToApply: op.estimatedTimeToApply,
-      })),
-    });
-
-    await prisma.growthAction.deleteMany({
-      where: { businessId, type: { in: ["pricing", "expense"] } },
-    });
-
-    await prisma.growthAction.createMany({
-      data: [
-        ...(result.pricingRecommendations ?? []).map((rec) => ({
-          businessId,
-          type: "pricing",
-          title: `Raise ${rec.serviceName} price from $${rec.currentPrice} to $${rec.suggestedPrice}`,
-          impact: `+$${rec.estimatedAnnualImpact.toLocaleString()}/year`,
-          reasoning: rec.reasoning,
-          urgency: "medium",
-          effort: "low",
-          dismissed: false,
-        })),
-        ...(result.expenseSavings ?? []).map((saving) => ({
-          businessId,
-          type: "expense",
-          title: saving.description,
-          impact: `-$${saving.estimatedAnnualSaving.toLocaleString()}/year in ${saving.category}`,
-          reasoning: saving.action,
-          urgency: "low",
-          effort: "medium",
-          dismissed: false,
-        })),
-      ],
-    });
-
-    return NextResponse.json({
-      fundingCount: result.fundingOpportunities?.length ?? 0,
-      pricingCount: result.pricingRecommendations?.length ?? 0,
-      expenseCount: result.expenseSavings?.length ?? 0,
+    return new NextResponse(stream, {
+      headers: {
+        "Content-Type": "application/json",
+        "Transfer-Encoding": "chunked",
+      },
     });
   } catch (err) {
     console.error("scan-opportunities error:", err);

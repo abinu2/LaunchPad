@@ -12,7 +12,6 @@ import type { Prisma } from "@prisma/client/index.js";
 
 // Skip prerendering for this API route
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
 
 interface FundingSource {
   name: string;
@@ -166,50 +165,74 @@ export async function POST(req: NextRequest) {
     const city = address.city ?? "your city";
     const state = biz.entityState ?? "your state";
 
-    // Scrape or generate funding opportunities
-    const opportunities = await scrapeFundingOpportunities(biz.businessType, state, city);
+    // Use streaming to avoid timeout
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          // Scrape or generate funding opportunities
+          const opportunities = await scrapeFundingOpportunities(biz.businessType, state, city);
 
-    // If no opportunities found, return success with empty array
-    if (!opportunities || opportunities.length === 0) {
-      return NextResponse.json({
-        success: true,
-        count: 0,
-        opportunities: [],
-        message: "No funding opportunities found. Try again later or configure Tiny Fish API.",
-      });
-    }
+          // If no opportunities found, return success with empty array
+          if (!opportunities || opportunities.length === 0) {
+            controller.enqueue(encoder.encode(JSON.stringify({
+              success: true,
+              count: 0,
+              opportunities: [],
+              message: "No funding opportunities found. Try again later or configure Tiny Fish API.",
+            })));
+            return controller.close();
+          }
 
-    // Clear old discovered opportunities and insert new ones
-    await prisma.fundingOpportunity.deleteMany({
-      where: { businessId, status: "discovered" },
+          // Clear old discovered opportunities and insert new ones
+          await prisma.fundingOpportunity.deleteMany({
+            where: { businessId, status: "discovered" },
+          });
+
+          await prisma.fundingOpportunity.createMany({
+            data: opportunities.map((opp) => ({
+              businessId,
+              name: opp.name,
+              provider: opp.provider,
+              type: opp.type,
+              amountMin: opp.amount.min,
+              amountMax: opp.amount.max,
+              interestRate: opp.interestRate,
+              repaymentTerms: opp.repaymentTerms,
+              eligibilityMatch: opp.eligibilityMatch,
+              eligibilityCriteria: opp.eligibilityCriteria as unknown as Prisma.InputJsonValue,
+              applicationUrl: opp.applicationUrl,
+              applicationDeadline: opp.applicationDeadline,
+              status: "discovered",
+              applicationProgress: 0,
+              fitScore: opp.fitScore,
+              recommendation: opp.recommendation,
+              estimatedTimeToApply: opp.estimatedTimeToApply,
+            })),
+          });
+
+          controller.enqueue(encoder.encode(JSON.stringify({
+            success: true,
+            count: opportunities.length,
+            opportunities: opportunities.slice(0, 5), // Return top 5 for preview
+          })));
+          controller.close();
+        } catch (err) {
+          console.error("scan-funding error:", err);
+          controller.enqueue(encoder.encode(JSON.stringify({ 
+            error: "Scan failed - ensure Groq API is configured",
+            details: err instanceof Error ? err.message : "Unknown error"
+          })));
+          controller.close();
+        }
+      },
     });
 
-    await prisma.fundingOpportunity.createMany({
-      data: opportunities.map((opp) => ({
-        businessId,
-        name: opp.name,
-        provider: opp.provider,
-        type: opp.type,
-        amountMin: opp.amount.min,
-        amountMax: opp.amount.max,
-        interestRate: opp.interestRate,
-        repaymentTerms: opp.repaymentTerms,
-        eligibilityMatch: opp.eligibilityMatch,
-        eligibilityCriteria: opp.eligibilityCriteria as unknown as Prisma.InputJsonValue,
-        applicationUrl: opp.applicationUrl,
-        applicationDeadline: opp.applicationDeadline,
-        status: "discovered",
-        applicationProgress: 0,
-        fitScore: opp.fitScore,
-        recommendation: opp.recommendation,
-        estimatedTimeToApply: opp.estimatedTimeToApply,
-      })),
-    });
-
-    return NextResponse.json({
-      success: true,
-      count: opportunities.length,
-      opportunities: opportunities.slice(0, 5), // Return top 5 for preview
+    return new NextResponse(stream, {
+      headers: {
+        "Content-Type": "application/json",
+        "Transfer-Encoding": "chunked",
+      },
     });
   } catch (err) {
     console.error("scan-funding error:", err);

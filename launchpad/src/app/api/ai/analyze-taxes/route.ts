@@ -4,6 +4,7 @@
  * Sends the business's actual receipts and bank transactions to Gemini and
  * asks it to identify missed deductions, under-claimed expenses, and
  * personalised tax-saving actions.
+ * Uses streaming to avoid Vercel timeout limits.
  *
  * Body: { businessId: string }
  *
@@ -17,7 +18,6 @@ import { prisma } from "@/lib/prisma";
 
 // Skip prerendering for this API route
 export const dynamic = "force-dynamic";
-export const maxDuration = 10;
 
 export interface MissedDeduction {
   title: string;
@@ -197,11 +197,31 @@ Tax rate assumptions: Combined self-employment + federal effective rate of ~30% 
 Return ONLY the JSON. No explanation, no markdown.
 `;
 
-    const result = isGroqConfigured()
-      ? await groqJSON<TaxAIResult>(prompt)
-      : await generateJSON<TaxAIResult>(prompt, DEFAULT_MODEL);
+    // Use streaming to avoid timeout
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const result = isGroqConfigured()
+            ? await groqJSON<TaxAIResult>(prompt)
+            : await generateJSON<TaxAIResult>(prompt, DEFAULT_MODEL);
 
-    return NextResponse.json(result);
+          controller.enqueue(encoder.encode(JSON.stringify(result)));
+          controller.close();
+        } catch (err) {
+          console.error("analyze-taxes error:", err);
+          controller.enqueue(encoder.encode(JSON.stringify({ error: "Tax analysis failed" })));
+          controller.close();
+        }
+      },
+    });
+
+    return new NextResponse(stream, {
+      headers: {
+        "Content-Type": "application/json",
+        "Transfer-Encoding": "chunked",
+      },
+    });
   } catch (err) {
     console.error("analyze-taxes error:", err);
     return NextResponse.json({ error: "Tax analysis failed" }, { status: 500 });

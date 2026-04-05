@@ -1,8 +1,7 @@
 /**
  * POST /api/ai/generate-compliance
  * Generates a complete compliance checklist for a business using Gemini.
- * Called on onboarding and whenever the business profile changes materially
- * (e.g. first employee hired, new operating city added).
+ * Uses streaming to avoid Vercel timeout limits.
  *
  * Body: { businessId: string }
  */
@@ -14,7 +13,6 @@ import { prisma } from "@/lib/prisma";
 
 // Skip prerendering for this API route
 export const dynamic = "force-dynamic";
-export const maxDuration = 10;
 
 interface ComplianceItemRaw {
   title: string;
@@ -108,44 +106,64 @@ Return a JSON array of compliance items. Each item must match this exact structu
 
 Return ONLY the JSON array. No explanation, no markdown.`;
 
-    const items = isGroqConfigured()
-      ? await groqJSON<ComplianceItemRaw[]>(prompt)
-      : await generateJSON<ComplianceItemRaw[]>(prompt);
+    // Use streaming to avoid timeout
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const items = isGroqConfigured()
+            ? await groqJSON<ComplianceItemRaw[]>(prompt)
+            : await generateJSON<ComplianceItemRaw[]>(prompt);
 
-    await prisma.complianceItem.deleteMany({
-      where: { businessId, status: "not_started" },
+          await prisma.complianceItem.deleteMany({
+            where: { businessId, status: "not_started" },
+          });
+
+          await prisma.complianceItem.createMany({
+            data: items.map((item) => ({
+              businessId,
+              title: item.title,
+              description: item.description,
+              jurisdiction: item.jurisdiction,
+              jurisdictionName: item.jurisdictionName,
+              category: item.category,
+              isRequired: item.isRequired,
+              legalCitation: item.legalCitation,
+              status: "not_started",
+              obtainedDate: null,
+              expirationDate: item.expirationDate,
+              renewalDate: null,
+              renewalFrequency: item.renewalFrequency,
+              daysUntilDue: item.daysUntilDue,
+              applicationUrl: item.applicationUrl,
+              cost: item.cost,
+              estimatedProcessingTime: item.estimatedProcessingTime,
+              documentationRequired: item.documentationRequired,
+              penaltyForNonCompliance: item.penaltyForNonCompliance,
+              reminderSent30Days: false,
+              reminderSent14Days: false,
+              reminderSent3Days: false,
+              lastCheckedAt: new Date(),
+              proofUrl: null,
+            })),
+          });
+
+          controller.enqueue(encoder.encode(JSON.stringify({ count: items.length, success: true })));
+          controller.close();
+        } catch (err) {
+          console.error("generate-compliance error:", err);
+          controller.enqueue(encoder.encode(JSON.stringify({ error: "Compliance generation failed" })));
+          controller.close();
+        }
+      },
     });
 
-    await prisma.complianceItem.createMany({
-      data: items.map((item) => ({
-        businessId,
-        title: item.title,
-        description: item.description,
-        jurisdiction: item.jurisdiction,
-        jurisdictionName: item.jurisdictionName,
-        category: item.category,
-        isRequired: item.isRequired,
-        legalCitation: item.legalCitation,
-        status: "not_started",
-        obtainedDate: null,
-        expirationDate: item.expirationDate,
-        renewalDate: null,
-        renewalFrequency: item.renewalFrequency,
-        daysUntilDue: item.daysUntilDue,
-        applicationUrl: item.applicationUrl,
-        cost: item.cost,
-        estimatedProcessingTime: item.estimatedProcessingTime,
-        documentationRequired: item.documentationRequired,
-        penaltyForNonCompliance: item.penaltyForNonCompliance,
-        reminderSent30Days: false,
-        reminderSent14Days: false,
-        reminderSent3Days: false,
-        lastCheckedAt: new Date(),
-        proofUrl: null,
-      })),
+    return new NextResponse(stream, {
+      headers: {
+        "Content-Type": "application/json",
+        "Transfer-Encoding": "chunked",
+      },
     });
-
-    return NextResponse.json({ count: items.length });
   } catch (err) {
     console.error("generate-compliance error:", err);
     return NextResponse.json({ error: "Compliance generation failed" }, { status: 500 });

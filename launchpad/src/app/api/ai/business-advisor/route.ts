@@ -16,8 +16,6 @@ interface OnboardingAnswers {
   helpDetails?: string;
 }
 
-export const maxDuration = 10;
-
 export async function POST(req: NextRequest) {
   try {
     const body: OnboardingAnswers = await req.json();
