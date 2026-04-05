@@ -18,7 +18,6 @@ import {
 import { fetchWithRetry } from "@/lib/fetch-file";
 import { prisma } from "@/lib/prisma";
 
-export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 const RECEIPT_SCHEMA = `{
