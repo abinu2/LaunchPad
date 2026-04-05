@@ -27,7 +27,7 @@ import type { Contract, ContractAnalysis, ContractObligation } from "@/types/con
 import { prisma } from "@/lib/prisma";
 import Groq from "groq-sdk";
 
-export const maxDuration = 60;
+// Skip prerendering for this API route
 export const dynamic = "force-dynamic";
 
 const MAX_CONTRACT_CHARS = 40_000;
@@ -145,10 +145,7 @@ export async function POST(req: NextRequest) {
 
       // Mark uploaded file as processing
       if (uploadedFileId) {
-        await prisma.uploadedFile.update({
-          where: { id: uploadedFileId },
-          data: { analysisStatus: "processing" },
-        }).catch(() => {});
+        console.log("uploadedFileId provided but UploadedFile model not in schema:", uploadedFileId);
       }
 
       const [{ business }, fileBuffer] = await Promise.all([
@@ -293,14 +290,7 @@ export async function POST(req: NextRequest) {
 
       // Update uploaded file record to link it to the contract
       if (uploadedFileId) {
-        await prisma.uploadedFile.update({
-          where: { id: uploadedFileId },
-          data: {
-            analysisStatus: "complete",
-            linkedType: "contract",
-            linkedId: contract.id,
-          },
-        }).catch(() => {});
+        console.log("uploadedFileId provided but UploadedFile model not in schema:", uploadedFileId);
       }
 
       // ── Send the final contract record as a sentinel ───────────────────────

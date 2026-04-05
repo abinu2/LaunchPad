@@ -77,52 +77,72 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Parallelize auth + file download + business lookup
-    const [{ business }, fileBuffer] = await Promise.all([
-      requireBusinessAccess(businessId),
-      fileBase64
-        ? Promise.resolve(Buffer.from(fileBase64, "base64"))
-        : fetchWithRetry(fileUrl!).then((r) => r.arrayBuffer()).then((ab) => Buffer.from(ab)),
-    ]);
+    // Use streaming to avoid timeout
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          // Parallelize auth + file download + business lookup
+          const [{ business }, fileBuffer] = await Promise.all([
+            requireBusinessAccess(businessId),
+            fileBase64
+              ? Promise.resolve(Buffer.from(fileBase64, "base64"))
+              : fetchWithRetry(fileUrl!).then((r) => r.arrayBuffer()).then((ab) => Buffer.from(ab)),
+          ]);
 
-    const bizCtx = business ? `${business.businessName} (${business.businessType})` : "small business";
+          const bizCtx = business ? `${business.businessName} (${business.businessType})` : "small business";
 
-    // Image → Groq vision one-shot
-    if (isImageMimeType(mimeType)) {
-      const visionResult = await analyzeImageWithGroqVision<ReceiptResult>(
-        `You are a bookkeeper. Analyze this receipt for ${bizCtx}. Return ONLY JSON:\n${RECEIPT_SCHEMA}\n${RULES}`,
-        fileBuffer,
-        mimeType
-      );
-      if (visionResult) {
-        if (uploadedFileId) {
-          await prisma.uploadedFile.update({
-            where: { id: uploadedFileId },
-            data: { analysisStatus: "complete" },
-          }).catch(() => {});
+          let result: ReceiptResult | null = null;
+
+          // Image → Groq vision one-shot
+          if (isImageMimeType(mimeType)) {
+            const visionResult = await analyzeImageWithGroqVision<ReceiptResult>(
+              `You are a bookkeeper. Analyze this receipt for ${bizCtx}. Return ONLY JSON:\n${RECEIPT_SCHEMA}\n${RULES}`,
+              fileBuffer,
+              mimeType
+            );
+            if (visionResult) {
+              result = visionResult;
+            }
+          }
+
+          // PDF or vision fallback → extract text then analyze
+          if (!result) {
+            const text = await extractDocumentText(fileBuffer, mimeType, {
+              minCharacters: 10,
+              preferOcr: false,
+            });
+
+            result = await generatePreferredJSON<ReceiptResult>(
+              `You are a bookkeeper. Analyze this receipt for ${bizCtx}.\n\nTEXT:\n${text}\n\nReturn ONLY JSON:\n${RECEIPT_SCHEMA}\n${RULES}`
+            );
+          }
+
+          if (uploadedFileId) {
+            console.log("uploadedFileId provided but UploadedFile model not in schema:", uploadedFileId);
+          }
+
+          controller.enqueue(encoder.encode(JSON.stringify(result)));
+          controller.close();
+        } catch (err) {
+          console.error("analyze-receipt error:", err);
+          const message = err instanceof Error ? err.message : "Receipt analysis failed";
+          const isConfig =
+            message.includes("API_KEY") || message.includes("GROQ_API_KEY") || message.includes("GEMINI_API_KEY");
+          controller.enqueue(encoder.encode(JSON.stringify({
+            error: isConfig ? message : "Receipt analysis failed — please try again"
+          })));
+          controller.close();
         }
-        return NextResponse.json(visionResult);
-      }
-    }
-
-    // PDF or vision fallback → extract text then analyze
-    const text = await extractDocumentText(fileBuffer, mimeType, {
-      minCharacters: 10,
-      preferOcr: false,
+      },
     });
 
-    const result = await generatePreferredJSON<ReceiptResult>(
-      `You are a bookkeeper. Analyze this receipt for ${bizCtx}.\n\nTEXT:\n${text}\n\nReturn ONLY JSON:\n${RECEIPT_SCHEMA}\n${RULES}`
-    );
-
-    if (uploadedFileId) {
-      await prisma.uploadedFile.update({
-        where: { id: uploadedFileId },
-        data: { analysisStatus: "complete" },
-      }).catch(() => {});
-    }
-
-    return NextResponse.json(result);
+    return new NextResponse(stream, {
+      headers: {
+        "Content-Type": "application/json",
+        "Transfer-Encoding": "chunked",
+      },
+    });
   } catch (err) {
     console.error("analyze-receipt error:", err);
     const message = err instanceof Error ? err.message : "Receipt analysis failed";

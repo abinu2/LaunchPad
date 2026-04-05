@@ -12,7 +12,6 @@ import { generateText, LONG_CONTEXT_MODEL } from "@/lib/vertex-ai";
 
 // Skip prerendering for this API route
 export const dynamic = "force-dynamic";
-export const maxDuration = 10;
 
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
   service_agreement: "Service Agreement",
@@ -96,19 +95,39 @@ Requirements:
 - Plain English, legally valid, protect the provider
 - Return ONLY the HTML content, no markdown`;
 
-    const rawHtml = isGroqConfigured()
-      ? await groqText(prompt)
-      : await generateText(prompt, LONG_CONTEXT_MODEL);
+    // Use streaming to avoid timeout
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const rawHtml = isGroqConfigured()
+            ? await groqText(prompt)
+            : await generateText(prompt, LONG_CONTEXT_MODEL);
 
-    // Strip any accidental markdown fences
-    const bodyHtml = rawHtml
-      .replace(/^```(?:html)?\n?/m, "")
-      .replace(/\n?```$/m, "")
-      .trim();
+          // Strip any accidental markdown fences
+          const bodyHtml = rawHtml
+            .replace(/^```(?:html)?\n?/m, "")
+            .replace(/\n?```$/m, "")
+            .trim();
 
-    const fullHtml = wrapHtml(`${typeLabel} - ${clientName}`, bodyHtml);
+          const fullHtml = wrapHtml(`${typeLabel} - ${clientName}`, bodyHtml);
 
-    return NextResponse.json({ html: fullHtml, contractType, clientName });
+          controller.enqueue(encoder.encode(JSON.stringify({ html: fullHtml, contractType, clientName })));
+          controller.close();
+        } catch (err) {
+          console.error("generate-contract error:", err);
+          controller.enqueue(encoder.encode(JSON.stringify({ error: "Contract generation failed" })));
+          controller.close();
+        }
+      },
+    });
+
+    return new NextResponse(stream, {
+      headers: {
+        "Content-Type": "application/json",
+        "Transfer-Encoding": "chunked",
+      },
+    });
   } catch (err) {
     console.error("generate-contract error:", err);
     return NextResponse.json({ error: "Contract generation failed" }, { status: 500 });

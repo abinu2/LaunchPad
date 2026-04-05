@@ -4,7 +4,6 @@ import { generateJSON } from "@/lib/vertex-ai";
 
 // Skip prerendering for this API route
 export const dynamic = "force-dynamic";
-export const maxDuration = 10;
 
 interface OnboardingAnswers {
   businessDescription: string;
@@ -84,11 +83,31 @@ Return ONLY valid JSON (no markdown):
   "urgentWarnings": ["string"]
 }`;
 
-    const result = isGroqConfigured()
-      ? await groqJSON<Record<string, unknown>>(prompt)
-      : await generateJSON<Record<string, unknown>>(prompt);
+    // Use streaming to avoid timeout
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const result = isGroqConfigured()
+            ? await groqJSON<Record<string, unknown>>(prompt)
+            : await generateJSON<Record<string, unknown>>(prompt);
 
-    return NextResponse.json(result);
+          controller.enqueue(encoder.encode(JSON.stringify(result)));
+          controller.close();
+        } catch (err) {
+          console.error("business-advisor error:", err);
+          controller.enqueue(encoder.encode(JSON.stringify({ error: "Failed to generate business plan" })));
+          controller.close();
+        }
+      },
+    });
+
+    return new NextResponse(stream, {
+      headers: {
+        "Content-Type": "application/json",
+        "Transfer-Encoding": "chunked",
+      },
+    });
   } catch (err) {
     console.error("business-advisor error:", err);
     return NextResponse.json(

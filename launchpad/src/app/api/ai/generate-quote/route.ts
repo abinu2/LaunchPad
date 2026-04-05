@@ -59,8 +59,28 @@ Return a JSON object:
 Assume a target labor rate of $25/hour for labor cost calculations.
 Return ONLY valid JSON. No markdown, no commentary.`;
 
-    const result = await generateJSON<PricingAnalysis>(prompt);
-    return NextResponse.json(result);
+    // Use streaming to avoid timeout
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const result = await generateJSON<PricingAnalysis>(prompt);
+          controller.enqueue(encoder.encode(JSON.stringify(result)));
+          controller.close();
+        } catch (err) {
+          console.error("generate-quote error:", err);
+          controller.enqueue(encoder.encode(JSON.stringify({ error: "Pricing analysis failed" })));
+          controller.close();
+        }
+      },
+    });
+
+    return new NextResponse(stream, {
+      headers: {
+        "Content-Type": "application/json",
+        "Transfer-Encoding": "chunked",
+      },
+    });
   } catch (err) {
     console.error("generate-quote error:", err);
     return NextResponse.json({ error: "Pricing analysis failed" }, { status: 500 });

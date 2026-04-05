@@ -7,7 +7,7 @@ import {
   sanitizeUploadFileName,
 } from "@/lib/blob-upload";
 
-export const maxDuration = 60;
+export const dynamic = "force-dynamic";
 
 type ClientUploadPayload = {
   businessId?: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
@@ -8,7 +8,7 @@ import { LoadingScreen } from "@/components/ui/LoadingScreen";
 // Disable static prerendering for this page since it requires Auth0 context
 export const dynamic = "force-dynamic";
 
-export default function LoginPage() {
+function LoginContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -43,5 +43,19 @@ export default function LoginPage() {
         "Loading your workspace",
       ]}
     />
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <LoadingScreen
+        title="Signing you in"
+        subtitle="Redirecting to secure authentication"
+        steps={["Connecting to Auth0", "Verifying credentials", "Loading your workspace"]}
+      />
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

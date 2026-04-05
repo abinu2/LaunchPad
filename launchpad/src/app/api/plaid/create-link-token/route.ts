@@ -6,6 +6,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/api-auth";
 import { plaidClient } from "@/lib/plaid";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
     // businessId is optional — we use the session user's sub as the Plaid user ID

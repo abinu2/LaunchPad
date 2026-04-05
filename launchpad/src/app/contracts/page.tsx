@@ -8,11 +8,11 @@ import { getContracts } from "@/services/business-graph";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { Badge } from "@/components/ui/Badge";
 import { ContractUploadZone } from "@/components/contracts/ContractUploadZone";
+import { GenerateContractModal } from "@/components/contracts/GenerateContractModal";
+import { SiteNav } from "@/components/ui/SiteNav";
 
 // Disable static prerendering for this page
 export const dynamic = "force-dynamic";
-import { GenerateContractModal } from "@/components/contracts/GenerateContractModal";
-import { SiteNav } from "@/components/ui/SiteNav";
 import type { Contract } from "@/types/contract";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
