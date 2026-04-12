@@ -62,11 +62,11 @@ export function GettingStartedChecklist({ data, business }: Props) {
   if (allDone) return null;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
+    <div className="glass-card rounded-xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="font-semibold text-slate-900 text-sm">Getting started</h3>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <h3 className="font-semibold text-white text-sm">Getting started</h3>
+          <p className="text-xs text-white/40 mt-0.5">
             {completed} of {items.length} complete
           </p>
         </div>
@@ -74,7 +74,7 @@ export function GettingStartedChecklist({ data, business }: Props) {
           {items.map((item) => (
             <div
               key={item.id}
-              className={`w-2 h-2 rounded-full ${item.done ? "bg-green-400" : "bg-slate-200"}`}
+              className={`w-2 h-2 rounded-full ${item.done ? "bg-[#00CF31]" : "bg-white/15"}`}
             />
           ))}
         </div>
@@ -87,30 +87,30 @@ export function GettingStartedChecklist({ data, business }: Props) {
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
               item.done
                 ? "opacity-60"
-                : "hover:bg-slate-50"
+                : "hover:bg-white/5"
             }`}
           >
             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
               item.done
-                ? "border-green-400 bg-green-400"
-                : "border-slate-300"
+                ? "border-[#00CF31] bg-[#00CF31]"
+                : "border-white/25"
             }`}>
               {item.done && (
-                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                 </svg>
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className={`text-sm font-medium ${item.done ? "text-slate-400 line-through" : "text-slate-900"}`}>
+              <p className={`text-sm font-medium ${item.done ? "text-white/30 line-through" : "text-white"}`}>
                 {item.label}
               </p>
               {!item.done && (
-                <p className="text-xs text-slate-400">{item.description}</p>
+                <p className="text-xs text-white/40">{item.description}</p>
               )}
             </div>
             {!item.done && (
-              <svg className="w-4 h-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-white/25" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             )}

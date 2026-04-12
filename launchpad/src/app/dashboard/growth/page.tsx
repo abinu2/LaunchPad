@@ -45,12 +45,12 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const TYPE_COLOR: Record<string, string> = {
-  grant: "bg-green-100 text-green-700",
-  microloan: "bg-blue-100 text-blue-700",
-  line_of_credit: "bg-purple-100 text-purple-700",
-  sba_loan: "bg-indigo-100 text-indigo-700",
-  competition: "bg-orange-100 text-orange-700",
-  other: "bg-slate-100 text-slate-600",
+  grant: "bg-green-500/15 text-green-400",
+  microloan: "bg-blue-500/100/15 text-blue-400",
+  line_of_credit: "bg-violet-500/15 text-violet-400",
+  sba_loan: "bg-indigo-500/15 text-indigo-400",
+  competition: "bg-orange-500/15 text-orange-400",
+  other: "bg-white/8 text-white/60",
 };
 
 const URGENCY_DOT: Record<string, string> = {
@@ -239,8 +239,8 @@ export default function GrowthPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Growth Radar</h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <h1 className="text-2xl font-bold text-white">Growth Radar</h1>
+          <p className="text-white/50 text-sm mt-1">
             {achievedCount}/{milestones.length} milestones · {activeOpps.length} funding opportunities
             {totalPotential > 0 && ` · $${totalPotential.toLocaleString()} potential`}
           </p>
@@ -251,7 +251,7 @@ export default function GrowthPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 bg-white/8 p-1 rounded-xl w-fit">
         {([
           { id: "actions", label: "Actions", count: data.actions.length },
           { id: "funding", label: "Funding", count: activeOpps.length },
@@ -262,12 +262,12 @@ export default function GrowthPage() {
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-              tab === t.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              tab === t.id ? "bg-white/15 text-white shadow-sm" : "text-white/50 hover:text-white/70"
             }`}
           >
             {t.label}
             {t.count !== null && t.count > 0 && (
-              <span className={`text-xs rounded-full px-1.5 py-0.5 ${tab === t.id ? "bg-blue-100 text-blue-700" : "bg-slate-200 text-slate-600"}`}>
+              <span className={`text-xs rounded-full px-1.5 py-0.5 ${tab === t.id ? "bg-white/15 text-white/80" : "bg-white/8 text-white/60"}`}>
                 {t.count}
               </span>
             )}
@@ -338,9 +338,9 @@ function ActionsTab({
 
   if (sorted.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center">
-        <p className="text-slate-500 mb-2">No actions yet.</p>
-        <p className="text-sm text-slate-400 mb-5">
+      <div className="glass-card rounded-xl border border-dashed border-white/15 p-12 text-center">
+        <p className="text-white/50 mb-2">No actions yet.</p>
+        <p className="text-sm text-white/40 mb-5">
           Run a scan to get AI-generated pricing, expense, and growth recommendations specific to your business.
         </p>
         <Button onClick={onScan} loading={scanning} size="sm">
@@ -353,36 +353,36 @@ function ActionsTab({
   return (
     <div className="space-y-3">
       {sorted.map((action, i) => (
-        <div key={action.id} className="bg-white rounded-xl border border-slate-200 p-4">
+        <div key={action.id} className="glass-card rounded-xl border border-white/10 p-4">
           <div className="flex items-start gap-3">
             <div className="flex flex-col items-center gap-1 flex-shrink-0 pt-0.5">
-              <span className="text-xs font-bold text-slate-400">{i + 1}</span>
+              <span className="text-xs font-bold text-white/40">{i + 1}</span>
               <span className={`w-2 h-2 rounded-full ${URGENCY_DOT[action.urgency]}`} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold text-slate-900">{action.title}</p>
+                <p className="text-sm font-semibold text-white">{action.title}</p>
                 <button
                   onClick={() => onDismiss(action.id)}
-                  className="text-slate-300 hover:text-slate-500 flex-shrink-0 text-xs"
+                  className="text-white/30 hover:text-white/50 flex-shrink-0 text-xs"
                   title="Dismiss"
                 >
                   ✕
                 </button>
               </div>
-              <p className="text-sm font-medium text-green-700 mt-0.5">{action.impact}</p>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">{action.reasoning}</p>
+              <p className="text-sm font-medium text-green-400 mt-0.5">{action.impact}</p>
+              <p className="text-xs text-white/50 mt-1 leading-relaxed">{action.reasoning}</p>
               <div className="flex items-center gap-2 mt-2">
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                  action.urgency === "high" ? "bg-red-100 text-red-700" :
-                  action.urgency === "medium" ? "bg-yellow-100 text-yellow-700" :
-                  "bg-blue-100 text-blue-700"
+                  action.urgency === "high" ? "bg-red-100 text-red-400" :
+                  action.urgency === "medium" ? "bg-amber-500/15 text-amber-400" :
+                  "bg-blue-500/100/15 text-blue-400"
                 }`}>
                   {action.urgency} priority
                 </span>
-                <span className="text-xs text-slate-400">{EFFORT_LABEL[action.effort]}</span>
-                <span className="text-xs text-slate-300">·</span>
-                <span className="text-xs text-slate-400 capitalize">{action.type}</span>
+                <span className="text-xs text-white/40">{EFFORT_LABEL[action.effort]}</span>
+                <span className="text-xs text-white/30">·</span>
+                <span className="text-xs text-white/40 capitalize">{action.type}</span>
               </div>
             </div>
           </div>
@@ -414,9 +414,9 @@ function FundingTab({
 
   if (opportunities.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center">
-        <p className="text-slate-500 mb-2">No funding opportunities scanned yet.</p>
-        <p className="text-sm text-slate-400 mb-5">
+      <div className="glass-card rounded-xl border border-dashed border-white/15 p-12 text-center">
+        <p className="text-white/50 mb-2">No funding opportunities scanned yet.</p>
+        <p className="text-sm text-white/40 mb-5">
           Scan to find grants, microloans, and SBA programs matched to your business profile.
         </p>
         <Button onClick={onScan} loading={scanning} size="sm">
@@ -433,7 +433,7 @@ function FundingTab({
         <button
           onClick={() => setFilter("all")}
           className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
-            filter === "all" ? "bg-slate-900 text-white border-slate-900" : "border-slate-300 text-slate-600 hover:border-slate-400"
+            filter === "all" ? "bg-white/15 text-white border-white/20" : "border-white/15 text-white/60 hover:border-white/30"
           }`}
         >
           All ({opportunities.length})
@@ -443,7 +443,7 @@ function FundingTab({
             key={t}
             onClick={() => setFilter(t)}
             className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
-              filter === t ? "bg-slate-900 text-white border-slate-900" : "border-slate-300 text-slate-600 hover:border-slate-400"
+              filter === t ? "bg-white/15 text-white border-white/20" : "border-white/15 text-white/60 hover:border-white/30"
             }`}
           >
             {TYPE_LABELS[t] ?? t} ({opportunities.filter((o) => o.type === t).length})
@@ -452,31 +452,31 @@ function FundingTab({
       </div>
 
       {filtered.map((opp) => (
-        <div key={opp.id} className="bg-white rounded-xl border border-slate-200 p-5">
+        <div key={opp.id} className="glass-card rounded-xl border border-white/10 p-5">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLOR[opp.type] ?? "bg-slate-100 text-slate-600"}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLOR[opp.type] ?? "bg-white/8 text-white/60"}`}>
                   {TYPE_LABELS[opp.type] ?? opp.type}
                 </span>
                 {opp.applicationDeadline && (
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-white/40">
                     Deadline: {new Date(opp.applicationDeadline).toLocaleDateString()}
                   </span>
                 )}
               </div>
-              <p className="font-semibold text-slate-900">{opp.name}</p>
-              <p className="text-sm text-slate-500">{opp.provider}</p>
+              <p className="font-semibold text-white">{opp.name}</p>
+              <p className="text-sm text-white/50">{opp.provider}</p>
             </div>
             <div className="text-right flex-shrink-0">
-              <p className="font-bold text-green-700 text-lg">
+              <p className="font-bold text-green-400 text-lg">
                 {opp.type === "grant" ? "Up to " : ""}${opp.amount.max.toLocaleString()}
               </p>
-              {opp.interestRate && <p className="text-xs text-slate-400">{opp.interestRate}</p>}
+              {opp.interestRate && <p className="text-xs text-white/40">{opp.interestRate}</p>}
             </div>
           </div>
 
-          <p className="text-sm text-slate-600 mb-3 leading-relaxed">{opp.recommendation}</p>
+          <p className="text-sm text-white/60 mb-3 leading-relaxed">{opp.recommendation}</p>
 
           {/* Eligibility criteria */}
           {opp.eligibilityCriteria?.length > 0 && (
@@ -486,11 +486,11 @@ function FundingTab({
                   <span className={`flex-shrink-0 mt-0.5 ${c.met ? "text-green-500" : "text-red-400"}`}>
                     {c.met ? "✓" : "✗"}
                   </span>
-                  <span className={c.met ? "text-slate-600" : "text-slate-400"}>{c.criterion}</span>
+                  <span className={c.met ? "text-white/60" : "text-white/40"}>{c.criterion}</span>
                 </div>
               ))}
               {opp.eligibilityCriteria.length > 3 && (
-                <p className="text-xs text-slate-400 pl-4">+{opp.eligibilityCriteria.length - 3} more criteria</p>
+                <p className="text-xs text-white/40 pl-4">+{opp.eligibilityCriteria.length - 3} more criteria</p>
               )}
             </div>
           )}
@@ -499,20 +499,20 @@ function FundingTab({
             <div className="flex items-center gap-3">
               {/* Match bar */}
               <div className="flex items-center gap-1.5">
-                <div className="h-1.5 w-16 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-1.5 w-16 bg-white/8 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full ${opp.eligibilityMatch >= 80 ? "bg-green-500" : opp.eligibilityMatch >= 60 ? "bg-yellow-400" : "bg-red-400"}`}
                     style={{ width: `${opp.eligibilityMatch}%` }}
                   />
                 </div>
-                <span className="text-xs text-slate-500">{opp.eligibilityMatch}% match</span>
+                <span className="text-xs text-white/50">{opp.eligibilityMatch}% match</span>
               </div>
-              <span className="text-xs text-slate-400">{opp.estimatedTimeToApply}</span>
+              <span className="text-xs text-white/40">{opp.estimatedTimeToApply}</span>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onSelect(opp)}
-                className="text-sm text-blue-600 font-medium hover:underline"
+                className="text-sm text-[#00CF31] font-medium hover:underline"
               >
                 Pre-fill application →
               </button>
@@ -521,17 +521,17 @@ function FundingTab({
 
           {/* Status badge if not just discovered */}
           {opp.status !== "discovered" && (
-            <div className="mt-3 pt-3 border-t border-slate-100">
+            <div className="mt-3 pt-3 border-t border-white/8">
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                opp.status === "approved" ? "bg-green-100 text-green-700" :
-                opp.status === "submitted" ? "bg-blue-100 text-blue-700" :
-                opp.status === "applying" ? "bg-yellow-100 text-yellow-700" :
-                "bg-slate-100 text-slate-600"
+                opp.status === "approved" ? "bg-green-500/15 text-green-400" :
+                opp.status === "submitted" ? "bg-blue-500/100/15 text-blue-400" :
+                opp.status === "applying" ? "bg-amber-500/15 text-amber-400" :
+                "bg-white/8 text-white/60"
               }`}>
                 {opp.status.charAt(0).toUpperCase() + opp.status.slice(1)}
               </span>
               {opp.applicationProgress > 0 && (
-                <span className="text-xs text-slate-400 ml-2">{opp.applicationProgress}% complete</span>
+                <span className="text-xs text-white/40 ml-2">{opp.applicationProgress}% complete</span>
               )}
             </div>
           )}
@@ -548,12 +548,12 @@ function MilestonesTab({ milestones }: { milestones: ReturnType<typeof computeMi
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
+      <div className="glass-card rounded-xl border border-white/10 p-5">
         <div className="flex items-center justify-between mb-1">
-          <p className="font-semibold text-slate-900">Progress</p>
-          <p className="text-sm text-slate-500">{achieved} of {milestones.length} achieved</p>
+          <p className="font-semibold text-white">Progress</p>
+          <p className="text-sm text-white/50">{achieved} of {milestones.length} achieved</p>
         </div>
-        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className="h-2 bg-white/8 rounded-full overflow-hidden">
           <div
             className="h-full bg-green-500 rounded-full transition-all"
             style={{ width: `${Math.round((achieved / milestones.length) * 100)}%` }}
@@ -564,33 +564,33 @@ function MilestonesTab({ milestones }: { milestones: ReturnType<typeof computeMi
       {milestones.map((m) => (
         <div
           key={m.id}
-          className={`bg-white rounded-xl border p-5 ${m.achieved ? "border-green-200" : "border-slate-200"}`}
+          className={`glass-card rounded-xl border p-5 ${m.achieved ? "border-green-500/20" : "border-white/10"}`}
         >
           <div className="flex items-start gap-3">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
-              m.achieved ? "bg-green-500" : "bg-slate-100"
+              m.achieved ? "bg-green-500" : "bg-white/8"
             }`}>
               {m.achieved ? (
                 <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                 </svg>
               ) : (
-                <span className="text-xs font-bold text-slate-400">{m.progress}%</span>
+                <span className="text-xs font-bold text-white/40">{m.progress}%</span>
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className={`font-semibold ${m.achieved ? "text-green-700" : "text-slate-900"}`}>
+              <p className={`font-semibold ${m.achieved ? "text-green-400" : "text-white"}`}>
                 {m.label}
               </p>
-              <p className="text-sm text-slate-500 mt-0.5">{m.description}</p>
+              <p className="text-sm text-white/50 mt-0.5">{m.description}</p>
 
               {!m.achieved && (
                 <div className="mt-2">
-                  <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                  <div className="flex items-center justify-between text-xs text-white/40 mb-1">
                     <span>{m.progressLabel}</span>
                     <span>{m.progress}%</span>
                   </div>
-                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-blue-400 rounded-full transition-all"
                       style={{ width: `${m.progress}%` }}
@@ -602,7 +602,7 @@ function MilestonesTab({ milestones }: { milestones: ReturnType<typeof computeMi
               <div className="mt-2 flex flex-wrap gap-1">
                 {m.unlocks.map((u, i) => (
                   <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${
-                    m.achieved ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
+                    m.achieved ? "bg-green-500/15 text-green-400" : "bg-white/8 text-white/50"
                   }`}>
                     {m.achieved ? "✓ " : ""}{u}
                   </span>
@@ -649,36 +649,36 @@ function DigestTab({
 
       {/* This week stats */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-          <p className="text-xl font-bold text-slate-900">${digest.weekRevenue.toLocaleString()}</p>
-          <p className="text-xs text-slate-400 mt-1">Revenue this week</p>
+        <div className="glass-card rounded-xl border border-white/10 p-4 text-center">
+          <p className="text-xl font-bold text-white">${digest.weekRevenue.toLocaleString()}</p>
+          <p className="text-xs text-white/40 mt-1">Revenue this week</p>
           {revenueVsAvg !== null && (
-            <p className={`text-xs font-medium mt-1 ${revenueVsAvg >= 0 ? "text-green-600" : "text-red-500"}`}>
+            <p className={`text-xs font-medium mt-1 ${revenueVsAvg >= 0 ? "text-[#00CF31]" : "text-red-500"}`}>
               {revenueVsAvg >= 0 ? "+" : ""}{revenueVsAvg}% vs avg
             </p>
           )}
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-          <p className="text-xl font-bold text-slate-900">${digest.weekExpenses.toLocaleString()}</p>
-          <p className="text-xs text-slate-400 mt-1">Expenses this week</p>
+        <div className="glass-card rounded-xl border border-white/10 p-4 text-center">
+          <p className="text-xl font-bold text-white">${digest.weekExpenses.toLocaleString()}</p>
+          <p className="text-xs text-white/40 mt-1">Expenses this week</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-          <p className="text-xl font-bold text-slate-900">{digest.newOpps}</p>
-          <p className="text-xs text-slate-400 mt-1">New opportunities</p>
+        <div className="glass-card rounded-xl border border-white/10 p-4 text-center">
+          <p className="text-xl font-bold text-white">{digest.newOpps}</p>
+          <p className="text-xs text-white/40 mt-1">New opportunities</p>
         </div>
       </div>
 
       {/* Upcoming deadlines */}
       {urgentOpps.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <p className="font-semibold text-slate-900 mb-3">Funding deadlines this month</p>
+        <div className="glass-card rounded-xl border border-white/10 p-5">
+          <p className="font-semibold text-white mb-3">Funding deadlines this month</p>
           <div className="space-y-2">
             {urgentOpps.map((opp) => {
               const days = Math.ceil((new Date(opp.applicationDeadline!).getTime() - now.getTime()) / 86400000);
               return (
                 <div key={opp.id} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-700 truncate flex-1 mr-3">{opp.name}</span>
-                  <span className={`text-xs font-medium flex-shrink-0 ${days <= 7 ? "text-red-600" : "text-yellow-600"}`}>
+                  <span className="text-white/70 truncate flex-1 mr-3">{opp.name}</span>
+                  <span className={`text-xs font-medium flex-shrink-0 ${days <= 7 ? "text-red-400" : "text-amber-400"}`}>
                     {days}d left
                   </span>
                 </div>
@@ -689,24 +689,24 @@ function DigestTab({
       )}
 
       {/* Business snapshot */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <p className="font-semibold text-slate-900 mb-3">Business snapshot</p>
+      <div className="glass-card rounded-xl border border-white/10 p-5">
+        <p className="font-semibold text-white mb-3">Business snapshot</p>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-slate-500">YTD revenue</span>
-            <span className="font-medium text-slate-900">${(business.financials?.totalRevenueYTD ?? 0).toLocaleString()}</span>
+            <span className="text-white/50">YTD revenue</span>
+            <span className="font-medium text-white">${(business.financials?.totalRevenueYTD ?? 0).toLocaleString()}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-500">Monthly average</span>
-            <span className="font-medium text-slate-900">${monthlyAvg.toLocaleString()}</span>
+            <span className="text-white/50">Monthly average</span>
+            <span className="font-medium text-white">${monthlyAvg.toLocaleString()}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-500">Profit margin</span>
-            <span className="font-medium text-slate-900">{Math.round((business.financials?.profitMargin ?? 0) * 100)}%</span>
+            <span className="text-white/50">Profit margin</span>
+            <span className="font-medium text-white">{Math.round((business.financials?.profitMargin ?? 0) * 100)}%</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-500">Cash balance</span>
-            <span className="font-medium text-slate-900">
+            <span className="text-white/50">Cash balance</span>
+            <span className="font-medium text-white">
               {business.financials?.currentCashBalance != null
                 ? `$${business.financials.currentCashBalance.toLocaleString()}`
                 : "Connect bank to see"}
@@ -765,14 +765,14 @@ function ApplicationModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col">
+      <div className="glass-card rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-4 border-b border-slate-200">
+        <div className="flex items-start justify-between px-6 py-4 border-b border-white/10">
           <div className="min-w-0 pr-4">
-            <h2 className="font-bold text-slate-900 truncate">{opportunity.name}</h2>
-            <p className="text-sm text-slate-500 mt-0.5">{opportunity.provider} · {opportunity.estimatedTimeToApply}</p>
+            <h2 className="font-bold text-white truncate">{opportunity.name}</h2>
+            <p className="text-sm text-white/50 mt-0.5">{opportunity.provider} · {opportunity.estimatedTimeToApply}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
+          <button onClick={onClose} className="text-white/40 hover:text-white/60 flex-shrink-0">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -783,19 +783,19 @@ function ApplicationModal({
           {/* Pre-filled fields */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-semibold text-slate-700">Pre-filled from your profile</p>
+              <p className="text-sm font-semibold text-white/70">Pre-filled from your profile</p>
               <button
                 onClick={handleCopyAll}
-                className="text-xs text-blue-600 hover:underline"
+                className="text-xs text-[#00CF31] hover:underline"
               >
                 {copied ? "Copied!" : "Copy all"}
               </button>
             </div>
-            <div className="bg-slate-50 rounded-xl border border-slate-200 divide-y divide-slate-100">
+            <div className="bg-white/5 rounded-xl border border-white/10 divide-y divide-white/8">
               {Object.entries(fields).map(([key, value]) => (
                 <div key={key} className="flex items-center justify-between px-3 py-2 gap-3">
-                  <span className="text-xs text-slate-500 flex-shrink-0">{key}</span>
-                  <span className="text-xs font-medium text-slate-900 text-right truncate">{value}</span>
+                  <span className="text-xs text-white/50 flex-shrink-0">{key}</span>
+                  <span className="text-xs font-medium text-white text-right truncate">{value}</span>
                 </div>
               ))}
             </div>
@@ -804,7 +804,7 @@ function ApplicationModal({
           {/* Fields needing manual input */}
           {needsManual.length > 0 && (
             <div>
-              <p className="text-sm font-semibold text-slate-700 mb-2">Still needed</p>
+              <p className="text-sm font-semibold text-white/70 mb-2">Still needed</p>
               <div className="space-y-1">
                 {needsManual.map((c, i) => (
                   <div key={i} className="flex items-start gap-2 text-xs bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
@@ -821,19 +821,19 @@ function ApplicationModal({
 
           {/* Repayment terms */}
           {opportunity.repaymentTerms && (
-            <div className="bg-blue-50 rounded-xl p-3">
-              <p className="text-xs font-semibold text-blue-700 mb-1">Repayment terms</p>
-              <p className="text-xs text-blue-600">{opportunity.repaymentTerms}</p>
+            <div className="bg-blue-500/10 rounded-xl p-3">
+              <p className="text-xs font-semibold text-blue-400 mb-1">Repayment terms</p>
+              <p className="text-xs text-[#00CF31]">{opportunity.repaymentTerms}</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-slate-200">
+        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-white/10">
           <div className="flex gap-2">
             <button
               onClick={() => onStatusChange("dismissed")}
-              className="text-xs text-slate-400 hover:text-slate-600"
+              className="text-xs text-white/40 hover:text-white/60"
             >
               Not interested
             </button>
@@ -841,7 +841,7 @@ function ApplicationModal({
           <div className="flex gap-2">
             <button
               onClick={() => onStatusChange("applying")}
-              className="px-3 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              className="px-3 py-2 text-sm text-white/70 border border-white/15 rounded-lg hover:bg-white/5 transition-colors"
             >
               Mark as applying
             </button>
@@ -850,7 +850,7 @@ function ApplicationModal({
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => onStatusChange("applying")}
-              className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 text-sm text-white bg-[#00CF31] rounded-lg hover:bg-blue-700 transition-colors"
             >
               Open application →
             </a>

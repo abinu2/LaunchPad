@@ -53,9 +53,9 @@ function TimelineBar({ contract: c }: { contract: Contract }) {
     : null;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Contract timeline</p>
-      <div className="relative h-3 bg-slate-100 rounded-full overflow-visible mb-3">
+    <div className="glass-card p-5">
+      <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-3">Contract timeline</p>
+      <div className="relative h-3 bg-white/8 rounded-full overflow-visible mb-3">
         <div className="absolute left-0 top-0 h-full bg-blue-400 rounded-full" style={{ width: `${pct}%` }} />
         {renewalPct !== null && (
           <div
@@ -65,14 +65,14 @@ function TimelineBar({ contract: c }: { contract: Contract }) {
           />
         )}
         <div
-          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white rounded-full z-10"
+          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-[#00CF31] border-2 border-white rounded-full z-10"
           style={{ left: `${pct}%` }}
           title="Today"
         />
       </div>
-      <div className="flex justify-between text-xs text-slate-400">
+      <div className="flex justify-between text-xs text-white/40">
         <span>{start?.toLocaleDateString() ?? "—"}</span>
-        {renewal && <span className="text-yellow-600">⚡ Renewal {renewal.toLocaleDateString()}</span>}
+        {renewal && <span className="text-amber-400">⚡ Renewal {renewal.toLocaleDateString()}</span>}
         <span>{end?.toLocaleDateString() ?? "Ongoing"}</span>
       </div>
       {c.autoRenewalNoticePeriod && renewal && (
@@ -142,10 +142,10 @@ export default function ContractDetailPage() {
   );
 
   if (!contract) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+    <div className="min-h-screen bg-white/5 flex items-center justify-center">
       <div className="text-center">
-        <p className="text-slate-600 mb-3">Contract not found.</p>
-        <Link href="/contracts" className="text-blue-600 text-sm hover:underline">← Back to vault</Link>
+        <p className="text-white/60 mb-3">Contract not found.</p>
+        <Link href="/contracts" className="text-[#00CF31] text-sm hover:underline">← Back to vault</Link>
       </div>
     </div>
   );
@@ -156,12 +156,12 @@ export default function ContractDetailPage() {
   const pendingObligations = contract.obligations?.filter((o) => o.status === "pending" || o.status === "at_risk") ?? [];
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-white/5">
       <SiteNav />
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
         {/* Breadcrumb */}
-        <Link href="/contracts" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
+        <Link href="/contracts" className="inline-flex items-center gap-1 text-sm text-white/50 hover:text-white/70">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
@@ -169,11 +169,11 @@ export default function ContractDetailPage() {
         </Link>
 
         {/* Header card */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <div className="glass-card p-6">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="min-w-0">
-              <h1 className="text-xl font-bold text-slate-900 truncate">{contract.counterpartyName}</h1>
-              <p className="text-slate-500 text-sm capitalize mt-0.5">
+              <h1 className="text-xl font-bold text-white truncate">{contract.counterpartyName}</h1>
+              <p className="text-white/50 text-sm capitalize mt-0.5">
                 {contract.contractType.replace(/_/g, " ")}
                 {contract.monthlyValue ? ` · $${contract.monthlyValue.toLocaleString()}/mo` : ""}
                 {contract.totalValue ? ` · $${contract.totalValue.toLocaleString()} total` : ""}
@@ -194,11 +194,11 @@ export default function ContractDetailPage() {
           {/* Health score */}
           {contract.healthScore !== undefined && (
             <div className="mb-4">
-              <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+              <div className="flex items-center justify-between text-xs text-white/50 mb-1">
                 <span>Contract health</span>
-                <span className="font-semibold text-slate-700">{contract.healthScore}/100</span>
+                <span className="font-semibold text-white/70">{contract.healthScore}/100</span>
               </div>
-              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-2 bg-white/8 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${
                     contract.healthScore >= 80 ? "bg-green-500" :
@@ -212,7 +212,7 @@ export default function ContractDetailPage() {
 
           {/* Summary */}
           {contract.analysis?.summary && (
-            <p className="text-sm text-slate-700 leading-relaxed mb-4">{contract.analysis.summary}</p>
+            <p className="text-sm text-white/70 leading-relaxed mb-4">{contract.analysis.summary}</p>
           )}
 
           {/* Quick stats */}
@@ -235,7 +235,7 @@ export default function ContractDetailPage() {
                 href={contract.fileUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 h-8 px-3 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                className="inline-flex items-center gap-1.5 h-8 px-3 text-sm text-white/70 border border-white/15 rounded-lg hover:bg-white/5 transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -246,7 +246,7 @@ export default function ContractDetailPage() {
             <select
               value={contract.status}
               onChange={(e) => handleStatusChange(e.target.value as Contract["status"])}
-              className="h-8 px-2 text-sm text-slate-700 border border-slate-300 rounded-lg bg-white"
+              className="h-8 px-2 text-sm text-white/70 border border-white/15 rounded-lg bg-white/5"
             >
               <option value="active">Active</option>
               <option value="expiring_soon">Expiring soon</option>
@@ -271,8 +271,8 @@ export default function ContractDetailPage() {
             </p>
             {contract.analysis.conflicts.map((conflict, i) => (
               <div key={i} className="mb-3 last:mb-0">
-                <p className="text-sm text-red-700 font-medium">{conflict.description}</p>
-                <p className="text-xs text-red-600 mt-0.5">{conflict.recommendation}</p>
+                <p className="text-sm text-red-400 font-medium">{conflict.description}</p>
+                <p className="text-xs text-red-400 mt-0.5">{conflict.recommendation}</p>
                 <Link href={`/contracts/${conflict.conflictingContractId}`} className="text-xs text-red-500 hover:underline mt-0.5 block">
                   See {conflict.conflictingContractName} →
                 </Link>
@@ -282,18 +282,18 @@ export default function ContractDetailPage() {
         )}
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit">
+        <div className="flex gap-1 glass-card border border-white/10 rounded-xl p-1 w-fit">
           {(["analysis", "obligations", "document"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`px-4 py-1.5 text-sm font-medium rounded-lg capitalize transition-colors ${
-                tab === t ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-700"
+                tab === t ? "bg-white/15 text-white" : "text-white/50 hover:text-white/70"
               }`}
             >
               {t}
               {t === "obligations" && pendingObligations.length > 0 && (
-                <span className="ml-1.5 bg-blue-500 text-white text-xs rounded-full px-1.5 py-0.5">
+                <span className="ml-1.5 bg-[#00CF31]/20 text-[#00CF31] text-xs rounded-full px-1.5 py-0.5">
                   {pendingObligations.length}
                 </span>
               )}
@@ -307,7 +307,7 @@ export default function ContractDetailPage() {
             {/* Dangerous clauses first */}
             {dangerClauses.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">
+                <p className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-2">
                   ⚠ Dangerous clauses ({dangerClauses.length})
                 </p>
                 <ClauseAccordion clauses={dangerClauses} defaultOpen />
@@ -317,7 +317,7 @@ export default function ContractDetailPage() {
             {/* Caution clauses */}
             {cautionClauses.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-yellow-600 uppercase tracking-wide mb-2">
+                <p className="text-xs font-semibold text-amber-400 uppercase tracking-wide mb-2">
                   Caution clauses ({cautionClauses.length})
                 </p>
                 <ClauseAccordion clauses={cautionClauses} />
@@ -345,7 +345,7 @@ export default function ContractDetailPage() {
                 <p className="text-sm font-semibold text-blue-800 mb-2">Recommendations</p>
                 <ul className="space-y-1">
                   {contract.analysis.recommendations.map((r, i) => (
-                    <li key={i} className="text-sm text-blue-700 flex gap-2">
+                    <li key={i} className="text-sm text-blue-400 flex gap-2">
                       <span className="flex-shrink-0">→</span>
                       <span>{r}</span>
                     </li>
@@ -357,7 +357,7 @@ export default function ContractDetailPage() {
             {/* Safe clauses collapsed */}
             {safeClauses.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">
+                <p className="text-xs font-semibold text-[#00CF31] uppercase tracking-wide mb-2">
                   Safe clauses ({safeClauses.length})
                 </p>
                 <ClauseAccordion clauses={safeClauses} />
@@ -366,13 +366,13 @@ export default function ContractDetailPage() {
 
             {/* Playbook deviations */}
             {(contract.analysis?.playbookDeviations?.length ?? 0) > 0 && (
-              <div className="bg-white rounded-xl border border-slate-200 p-5">
-                <p className="text-sm font-semibold text-slate-800 mb-3">Playbook deviations</p>
+              <div className="glass-card p-5">
+                <p className="text-sm font-semibold text-white mb-3">Playbook deviations</p>
                 <div className="space-y-3">
                   {contract.analysis.playbookDeviations.map((d, i) => (
-                    <div key={i} className="border-l-2 border-slate-300 pl-3">
-                      <p className="text-sm font-medium text-slate-700">{d.clauseTitle}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{d.reason}</p>
+                    <div key={i} className="border-l-2 border-white/15 pl-3">
+                      <p className="text-sm font-medium text-white/70">{d.clauseTitle}</p>
+                      <p className="text-xs text-white/50 mt-0.5">{d.reason}</p>
                     </div>
                   ))}
                 </div>
@@ -391,44 +391,44 @@ export default function ContractDetailPage() {
 
         {/* ── DOCUMENT TAB ── */}
         {tab === "document" && (
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <div className="glass-card p-5">
             {(contract.analysis as { generatedHtml?: string })?.generatedHtml ? (
               <>
                 <div className="flex items-center justify-between mb-4">
-                  <p className="font-semibold text-slate-900">Generated contract</p>
-                  <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded">AI-generated draft</span>
+                  <p className="font-semibold text-white">Generated contract</p>
+                  <span className="text-xs text-white/40 bg-white/8 px-2 py-1 rounded">AI-generated draft</span>
                 </div>
                 <div
-                  className="prose prose-sm max-w-none border border-slate-200 rounded-lg p-6 overflow-y-auto max-h-[600px]"
+                  className="prose prose-sm max-w-none border border-white/10 rounded-lg p-6 overflow-y-auto max-h-[600px]"
                   dangerouslySetInnerHTML={{ __html: (contract.analysis as { generatedHtml: string }).generatedHtml }}
                 />
               </>
             ) : contract.fileUrl ? (
               <>
                 <div className="flex items-center justify-between mb-4">
-                  <p className="font-semibold text-slate-900">Original document</p>
+                  <p className="font-semibold text-white">Original document</p>
                   <a
                     href={contract.fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline"
+                    className="text-sm text-[#00CF31] hover:underline"
                   >
                     Open in new tab →
                   </a>
                 </div>
                 {contract.fileType === "image" ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={contract.fileUrl} alt={contract.fileName} className="w-full rounded-lg border border-slate-200" />
+                  <img src={contract.fileUrl} alt={contract.fileName} className="w-full rounded-lg border border-white/10" />
                 ) : (
                   <iframe
                     src={contract.fileUrl}
-                    className="w-full h-[600px] rounded-lg border border-slate-200"
+                    className="w-full h-[600px] rounded-lg border border-white/10"
                     title={contract.fileName}
                   />
                 )}
               </>
             ) : (
-              <p className="text-slate-400 text-sm text-center py-8">No document available</p>
+              <p className="text-white/40 text-sm text-center py-8">No document available</p>
             )}
           </div>
         )}
@@ -448,10 +448,10 @@ export default function ContractDetailPage() {
 
 function StatChip({ label, value, color }: { label: string; value: number; color: "red" | "yellow" | "green" | "blue" }) {
   const colors = {
-    red: "bg-red-50 text-red-700",
-    yellow: "bg-yellow-50 text-yellow-700",
-    green: "bg-green-50 text-green-700",
-    blue: "bg-blue-50 text-blue-700",
+    red: "bg-red-50 text-red-400",
+    yellow: "bg-amber-500/10 text-amber-400",
+    green: "bg-green-50 text-green-400",
+    blue: "bg-blue-50 text-blue-400",
   };
   return (
     <div className={`rounded-lg p-3 ${colors[color]}`}>

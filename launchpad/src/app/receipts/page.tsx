@@ -39,23 +39,23 @@ export default function ReceiptsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Receipts</h1>
-        <p className="text-slate-500 text-sm mt-1">Track and categorize your business expenses</p>
+        <h1 className="text-2xl font-bold text-white">Receipts</h1>
+        <p className="text-white/50 text-sm mt-1">Track and categorize your business expenses</p>
       </div>
 
       {/* Summary */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-400 mb-1">Total receipts</p>
-          <p className="text-2xl font-bold text-slate-900">{filtered.length}</p>
+        <div className="glass-card p-4">
+          <p className="text-xs text-white/40 mb-1">Total receipts</p>
+          <p className="text-2xl font-bold text-white">{filtered.length}</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-400 mb-1">Total amount</p>
-          <p className="text-2xl font-bold text-slate-900">${totalAmount.toLocaleString()}</p>
+        <div className="glass-card p-4">
+          <p className="text-xs text-white/40 mb-1">Total amount</p>
+          <p className="text-2xl font-bold text-white">${totalAmount.toLocaleString()}</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-400 mb-1">Deductible</p>
-          <p className="text-2xl font-bold text-green-700">${totalDeductible.toLocaleString()}</p>
+        <div className="glass-card p-4">
+          <p className="text-xs text-white/40 mb-1">Deductible</p>
+          <p className="text-2xl font-bold text-green-400">${totalDeductible.toLocaleString()}</p>
         </div>
       </div>
 
@@ -64,7 +64,7 @@ export default function ReceiptsPage() {
         <button
           onClick={() => setFilter("all")}
           className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
-            filter === "all" ? "bg-slate-900 text-white border-slate-900" : "border-slate-300 text-slate-600 hover:border-slate-400"
+            filter === "all" ? "bg-white/15 text-white border-white/20" : "border-white/15 text-white/60 hover:border-white/30"
           }`}
         >
           All ({receipts.length})
@@ -74,7 +74,7 @@ export default function ReceiptsPage() {
             key={cat}
             onClick={() => setFilter(cat)}
             className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
-              filter === cat ? "bg-slate-900 text-white border-slate-900" : "border-slate-300 text-slate-600 hover:border-slate-400"
+              filter === cat ? "bg-white/15 text-white border-white/20" : "border-white/15 text-white/60 hover:border-white/30"
             }`}
           >
             {cat} ({receipts.filter((r) => r.category === cat).length})
@@ -84,22 +84,22 @@ export default function ReceiptsPage() {
 
       {/* Receipts list */}
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center">
-          <p className="text-slate-500 mb-2">No receipts yet</p>
-          <p className="text-sm text-slate-400">Start scanning receipts to track your expenses</p>
+        <div className="glass-card rounded-xl border border-dashed border-white/15 p-12 text-center">
+          <p className="text-white/50 mb-2">No receipts yet</p>
+          <p className="text-sm text-white/40">Start scanning receipts to track your expenses</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
+        <div className="glass-card divide-y divide-slate-100">
           {filtered.map((receipt) => (
             <div key={receipt.id} className="p-4 flex items-center justify-between">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-slate-900">{receipt.vendor}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{receipt.date}</p>
+                <p className="font-medium text-white">{receipt.vendor}</p>
+                <p className="text-xs text-white/40 mt-0.5">{receipt.date}</p>
               </div>
               <div className="text-right flex-shrink-0 ml-4">
-                <p className="font-medium text-slate-900">${receipt.amount.toFixed(2)}</p>
+                <p className="font-medium text-white">${receipt.amount.toFixed(2)}</p>
                 {receipt.deductibleAmount > 0 && (
-                  <p className="text-xs text-green-600">${receipt.deductibleAmount.toFixed(2)} deductible</p>
+                  <p className="text-xs text-[#00CF31]">${receipt.deductibleAmount.toFixed(2)} deductible</p>
                 )}
               </div>
             </div>

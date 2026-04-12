@@ -20,16 +20,16 @@ export function ComplianceQuadrant({ items }: Props) {
   const dashOffset = circumference - (pct / 100) * circumference;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 h-full group-hover:border-blue-300 group-hover:shadow-sm transition-all">
+    <div className="glass-card rounded-xl p-5 h-full group-hover:border-[#00CF31]/30 group-hover:shadow-lg transition-all">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Am I Compliant?</p>
-          <p className="text-2xl font-bold text-slate-900">{compliant}<span className="text-base font-normal text-slate-400">/{total}</span></p>
-          <p className="text-sm text-slate-500">requirements met</p>
+          <p className="text-xs font-medium text-white/40 uppercase tracking-wide mb-1">Am I Compliant?</p>
+          <p className="text-2xl font-bold text-white">{compliant}<span className="text-base font-normal text-white/40">/{total}</span></p>
+          <p className="text-sm text-white/50">requirements met</p>
         </div>
         {/* Ring chart */}
         <svg width="48" height="48" viewBox="0 0 48 48">
-          <circle cx="24" cy="24" r="20" fill="none" stroke="#e2e8f0" strokeWidth="5" />
+          <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="5" />
           <circle
             cx="24" cy="24" r="20"
             fill="none"
@@ -40,23 +40,23 @@ export function ComplianceQuadrant({ items }: Props) {
             strokeLinecap="round"
             transform="rotate(-90 24 24)"
           />
-          <text x="24" y="28" textAnchor="middle" fontSize="11" fontWeight="600" fill="#1e293b">{pct}%</text>
+          <text x="24" y="28" textAnchor="middle" fontSize="11" fontWeight="600" fill="white">{pct}%</text>
         </svg>
       </div>
 
       <div className="flex gap-3 mb-3 text-xs">
-        {overdue > 0 && <span className="text-red-600 font-medium">{overdue} overdue</span>}
-        {dueSoon > 0 && <span className="text-yellow-600 font-medium">{dueSoon} due soon</span>}
-        {overdue === 0 && dueSoon === 0 && total > 0 && <span className="text-green-600 font-medium">All current</span>}
+        {overdue > 0 && <span className="text-red-400 font-medium">{overdue} overdue</span>}
+        {dueSoon > 0 && <span className="text-amber-400 font-medium">{dueSoon} due soon</span>}
+        {overdue === 0 && dueSoon === 0 && total > 0 && <span className="text-[#00CF31] font-medium">All current</span>}
       </div>
 
       {urgentItems.length > 0 && (
         <div className="space-y-1.5">
           {urgentItems.map((item) => (
             <div key={item.id} className="flex items-center gap-2 text-xs">
-              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${item.status === "overdue" ? "bg-red-400" : "bg-yellow-400"}`} />
-              <span className="text-slate-600 truncate flex-1">{item.title}</span>
-              <span className={`flex-shrink-0 ${item.status === "overdue" ? "text-red-600" : "text-yellow-600"}`}>
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${item.status === "overdue" ? "bg-red-400" : "bg-amber-400"}`} />
+              <span className="text-white/60 truncate flex-1">{item.title}</span>
+              <span className={`flex-shrink-0 ${item.status === "overdue" ? "text-red-400" : "text-amber-400"}`}>
                 {item.status === "overdue" ? "Overdue" : `${item.daysUntilDue}d`}
               </span>
             </div>
@@ -65,7 +65,7 @@ export function ComplianceQuadrant({ items }: Props) {
       )}
 
       {total === 0 && (
-        <p className="text-sm text-slate-400">Compliance items will appear after onboarding</p>
+        <p className="text-sm text-white/40">Compliance items will appear after onboarding</p>
       )}
     </div>
   );

@@ -1,30 +1,34 @@
 /**
  * Prisma client singleton — server-side only.
+ * Uses the Neon serverless HTTP driver for optimal cold-start performance on Vercel.
  * Import only in API routes (src/app/api/**).
  */
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaNeonHttp } from "@prisma/adapter-neon";
 import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-const connectionString = process.env.DATABASE_URL;
 
-// Only create adapter if we have a connection string (skip during build if not set)
-let adapter: PrismaPg | undefined;
-try {
-  if (connectionString) {
-    adapter = new PrismaPg({ connectionString });
+function createPrismaClient(): PrismaClient {
+  const connectionString = process.env.DATABASE_URL;
+
+  if (!connectionString) {
+    // During build or test with no DB, return a no-adapter client.
+    // Any actual DB call will throw a clear error at runtime.
+    return new PrismaClient({
+      log: ["error"],
+      errorFormat: "pretty",
+    });
   }
-} catch (e) {
-  // Adapter initialization failed, will use default
-  console.warn("Failed to initialize PrismaPg adapter:", e instanceof Error ? e.message : String(e));
-}
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+  const adapter = new PrismaNeonHttp(connectionString, { arrayMode: false, fullResults: false });
+
+  return new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["error"] : [],
     errorFormat: "pretty",
   });
+}
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

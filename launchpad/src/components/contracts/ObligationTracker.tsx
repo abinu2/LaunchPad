@@ -9,11 +9,11 @@ interface Props {
 }
 
 const statusConfig: Record<ContractObligation["status"], { label: string; color: string; dot: string }> = {
-  pending: { label: "Pending", color: "bg-blue-100 text-blue-700", dot: "bg-blue-400" },
-  fulfilled: { label: "Fulfilled", color: "bg-green-100 text-green-700", dot: "bg-green-400" },
-  at_risk: { label: "At risk", color: "bg-yellow-100 text-yellow-700", dot: "bg-yellow-400" },
-  breached: { label: "Breached", color: "bg-red-100 text-red-700", dot: "bg-red-400" },
-  not_applicable: { label: "N/A", color: "bg-slate-100 text-slate-500", dot: "bg-slate-300" },
+  pending: { label: "Pending", color: "bg-blue-500/15 text-blue-400", dot: "bg-blue-400" },
+  fulfilled: { label: "Fulfilled", color: "bg-green-500/15 text-green-400", dot: "bg-green-400" },
+  at_risk: { label: "At risk", color: "bg-amber-500/15 text-amber-400", dot: "bg-yellow-400" },
+  breached: { label: "Breached", color: "bg-red-500/15 text-red-400", dot: "bg-red-400" },
+  not_applicable: { label: "N/A", color: "bg-white/8 text-white/50", dot: "bg-white/20" },
 };
 
 const triggerIcon: Record<ContractObligation["triggerType"], string> = {
@@ -45,8 +45,8 @@ export function ObligationTracker({ obligations, onUpdate }: Props) {
 
   if (obligations.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center">
-        <p className="text-slate-500">No obligations extracted from this contract.</p>
+      <div className="glass-card rounded-xl border border-dashed border-white/15 p-10 text-center">
+        <p className="text-white/50">No obligations extracted from this contract.</p>
       </div>
     );
   }
@@ -70,7 +70,7 @@ export function ObligationTracker({ obligations, onUpdate }: Props) {
 
         return (
           <div key={key}>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{label}</p>
+            <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-3">{label}</p>
             <div className="space-y-3">
               {items.map((obl) => {
                 const cfg = statusConfig[obl.status];
@@ -81,16 +81,16 @@ export function ObligationTracker({ obligations, onUpdate }: Props) {
                 return (
                   <div
                     key={obl.id}
-                    className={`bg-white rounded-xl border p-4 ${
-                      isOverdue ? "border-red-200" : isUrgent ? "border-yellow-200" : "border-slate-200"
+                    className={`glass-card rounded-xl border p-4 ${
+                      isOverdue ? "border-red-500/20" : isUrgent ? "border-amber-500/20" : "border-white/10"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="flex items-start gap-2 flex-1 min-w-0">
                         <span className="text-base flex-shrink-0 mt-0.5">{triggerIcon[obl.triggerType]}</span>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-slate-900">{obl.description}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">
+                          <p className="text-sm font-medium text-white">{obl.description}</p>
+                          <p className="text-xs text-white/40 mt-0.5">
                             {obl.clauseRef && <span className="mr-2">Clause {obl.clauseRef}</span>}
                             {obl.triggerDescription}
                           </p>
@@ -104,7 +104,7 @@ export function ObligationTracker({ obligations, onUpdate }: Props) {
                     {/* Due date */}
                     {obl.dueDate && (
                       <p className={`text-xs font-medium mb-2 ${
-                        isOverdue ? "text-red-600" : isUrgent ? "text-yellow-600" : "text-slate-500"
+                        isOverdue ? "text-red-400" : isUrgent ? "text-amber-400" : "text-white/50"
                       }`}>
                         {isOverdue
                           ? `Overdue by ${Math.abs(days!)} day${Math.abs(days!) !== 1 ? "s" : ""}`
@@ -115,7 +115,7 @@ export function ObligationTracker({ obligations, onUpdate }: Props) {
                     )}
 
                     {obl.recurringFrequency && (
-                      <p className="text-xs text-slate-400 mb-2">Recurring: {obl.recurringFrequency}</p>
+                      <p className="text-xs text-white/40 mb-2">Recurring: {obl.recurringFrequency}</p>
                     )}
 
                     {/* Status actions */}
@@ -128,7 +128,7 @@ export function ObligationTracker({ obligations, onUpdate }: Props) {
                           className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
                             obl.status === s
                               ? `${statusConfig[s].color} border-transparent font-medium`
-                              : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                              : "border-white/10 text-white/50 hover:bg-white/5"
                           } disabled:opacity-50`}
                         >
                           {saving === obl.id && obl.status !== s ? "..." : statusConfig[s].label}
@@ -138,14 +138,14 @@ export function ObligationTracker({ obligations, onUpdate }: Props) {
 
                     {/* Notes */}
                     <details className="mt-2 group">
-                      <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-600 select-none">
+                      <summary className="text-xs text-white/40 cursor-pointer hover:text-white/60 select-none">
                         {obl.notes ? "Notes (click to edit)" : "Add notes"}
                       </summary>
                       <textarea
                         defaultValue={obl.notes ?? ""}
                         onBlur={(e) => updateNotes(obl.id, e.target.value)}
                         placeholder="Add context or notes about this obligation..."
-                        className="mt-2 w-full text-xs text-slate-600 border border-slate-200 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        className="mt-2 w-full text-xs text-white/60 border border-white/10 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
                         rows={2}
                       />
                     </details>

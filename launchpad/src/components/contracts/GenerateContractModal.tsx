@@ -40,7 +40,7 @@ const CONTRACT_TYPES: { value: ContractType; label: string; description: string;
     value: "nda",
     label: "Non-Disclosure Agreement",
     description: "Protect confidential information",
-    color: "border-slate-200 bg-slate-50 hover:border-slate-400",
+    color: "border-white/10 bg-white/5 hover:border-white/30",
     icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>,
   },
   {
@@ -61,14 +61,14 @@ const CONTRACT_TYPES: { value: ContractType; label: string; description: string;
     value: "retainer_agreement",
     label: "Monthly Retainer",
     description: "Ongoing monthly service agreement",
-    color: "border-green-200 bg-green-50 hover:border-green-400",
+    color: "border-green-500/20 bg-green-50 hover:border-green-400",
     icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
   },
   {
     value: "equipment_rental",
     label: "Equipment Rental",
     description: "Rent equipment to or from someone",
-    color: "border-yellow-200 bg-yellow-50 hover:border-yellow-400",
+    color: "border-amber-500/20 bg-amber-500/10 hover:border-yellow-400",
     icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>,
   },
   {
@@ -129,20 +129,20 @@ const STEP_LABELS: Record<Step, string> = {
 
 function StepIndicator({ current }: { current: Step }) {
   return (
-    <div className="flex items-center gap-1 px-6 py-3 border-b border-slate-100">
+    <div className="flex items-center gap-1 px-6 py-3 border-b border-white/8">
       {([1, 2, 3, 4] as Step[]).map((step, i) => (
         <div key={step} className="flex items-center gap-1 flex-1">
           <div className={`flex items-center gap-1.5 ${step <= current ? "opacity-100" : "opacity-40"}`}>
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all ${step < current ? "bg-green-500 text-white" : step === current ? "bg-blue-600 text-white scale-110" : "bg-slate-200 text-slate-500"}`}>
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all ${step < current ? "bg-green-500 text-white" : step === current ? "bg-[#00CF31] text-black scale-110" : "bg-white/12 text-white/50"}`}>
               {step < current ? (
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                 </svg>
               ) : step}
             </div>
-            <span className={`text-xs font-medium hidden sm:block ${step === current ? "text-blue-600" : "text-slate-400"}`}>{STEP_LABELS[step]}</span>
+            <span className={`text-xs font-medium hidden sm:block ${step === current ? "text-[#00CF31]" : "text-white/40"}`}>{STEP_LABELS[step]}</span>
           </div>
-          {i < 3 && <div className={`flex-1 h-px mx-1 ${step < current ? "bg-green-300" : "bg-slate-200"}`} />}
+          {i < 3 && <div className={`flex-1 h-px mx-1 ${step < current ? "bg-green-300" : "bg-white/12"}`} />}
         </div>
       ))}
     </div>
@@ -305,14 +305,14 @@ export function GenerateContractModal({ businessId, onClose, prefill }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col animate-pop-in">
+      <div className="glass-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col animate-pop-in">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
           <div>
-            <h2 className="font-bold text-slate-900">Generate a contract</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Attorney-grade · AI-drafted · Ready to sign</p>
+            <h2 className="font-bold text-white">Generate a contract</h2>
+            <p className="text-xs text-white/40 mt-0.5">Attorney-grade · AI-drafted · Ready to sign</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white/60 hover:bg-white/8 rounded-lg transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -336,16 +336,16 @@ export function GenerateContractModal({ businessId, onClose, prefill }: Props) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <p className="text-sm font-semibold text-slate-700">Contract ready — review before saving</p>
+                <p className="text-sm font-semibold text-white/70">Contract ready — review before saving</p>
               </div>
-              <div className="border border-slate-200 rounded-xl p-5 text-sm overflow-y-auto max-h-80 bg-white shadow-inner" dangerouslySetInnerHTML={{ __html: html }} />
+              <div className="border border-white/10 rounded-xl p-5 text-sm overflow-y-auto max-h-80 bg-white/5" dangerouslySetInnerHTML={{ __html: html }} />
             </div>
           )}
 
           {/* Step 1: Contract Type */}
           {!generating && !html && step === 1 && (
             <div className="px-6 py-5">
-              <p className="text-sm font-medium text-slate-700 mb-3">What kind of contract do you need?</p>
+              <p className="text-sm font-medium text-white/70 mb-3">What kind of contract do you need?</p>
               <div className="grid grid-cols-2 gap-2">
                 {CONTRACT_TYPES.map((ct) => (
                   <button
@@ -354,12 +354,12 @@ export function GenerateContractModal({ businessId, onClose, prefill }: Props) {
                     className={`text-left p-3 rounded-xl border-2 transition-all duration-150 ${contractType === ct.value ? "border-blue-500 bg-blue-50 shadow-sm" : ct.color}`}
                   >
                     <div className="flex items-start gap-2.5">
-                      <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center mt-0.5 ${contractType === ct.value ? "bg-blue-600 text-white" : "bg-white text-slate-600 border border-slate-200"}`}>
+                      <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center mt-0.5 ${contractType === ct.value ? "bg-[#00CF31] text-black" : "bg-white/8 text-white/60 border border-white/10"}`}>
                         {ct.icon}
                       </div>
                       <div>
-                        <p className={`text-sm font-semibold ${contractType === ct.value ? "text-blue-700" : "text-slate-800"}`}>{ct.label}</p>
-                        <p className="text-xs text-slate-400 mt-0.5 leading-tight">{ct.description}</p>
+                        <p className={`text-sm font-semibold ${contractType === ct.value ? "text-blue-400" : "text-white"}`}>{ct.label}</p>
+                        <p className="text-xs text-white/40 mt-0.5 leading-tight">{ct.description}</p>
                       </div>
                     </div>
                   </button>
@@ -372,7 +372,7 @@ export function GenerateContractModal({ businessId, onClose, prefill }: Props) {
           {!generating && !html && step === 2 && (
             <div className="px-6 py-5 space-y-4">
               <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${selectedType?.color.includes("blue") ? "bg-blue-600 text-white" : "bg-white text-slate-600 border border-slate-200"}`}>
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${selectedType?.color.includes("blue") ? "bg-[#00CF31] text-black" : "bg-white/8 text-white/60 border border-white/10"}`}>
                   {selectedType?.icon}
                 </div>
                 <p className="text-sm font-medium text-blue-800">{selectedType?.label}</p>
@@ -380,44 +380,44 @@ export function GenerateContractModal({ businessId, onClose, prefill }: Props) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                  <label className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">
                     {contractType === "subcontractor_agreement" || contractType === "independent_contractor" ? "Contractor name" : contractType === "partnership_agreement" ? "Partner name" : "Client name"} <span className="text-red-500">*</span>
                   </label>
-                  <input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="e.g. Jane Smith" className="w-full h-9 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="e.g. Jane Smith" className="w-full h-9 px-3 rounded-lg border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40 focus:border-transparent" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Email (optional)</label>
-                  <input value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="client@example.com" type="email" className="w-full h-9 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <label className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Email (optional)</label>
+                  <input value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="client@example.com" type="email" className="w-full h-9 px-3 rounded-lg border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40 focus:border-transparent" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Company (optional)</label>
-                  <input value={clientCompany} onChange={(e) => setClientCompany(e.target.value)} placeholder="Acme Corp" className="w-full h-9 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <label className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Company (optional)</label>
+                  <input value={clientCompany} onChange={(e) => setClientCompany(e.target.value)} placeholder="Acme Corp" className="w-full h-9 px-3 rounded-lg border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40 focus:border-transparent" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Service location (optional)</label>
-                  <input value={projectLocation} onChange={(e) => setProjectLocation(e.target.value)} placeholder="Miami, FL" className="w-full h-9 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <label className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Service location (optional)</label>
+                  <input value={projectLocation} onChange={(e) => setProjectLocation(e.target.value)} placeholder="Miami, FL" className="w-full h-9 px-3 rounded-lg border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40 focus:border-transparent" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                <label className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">
                   Describe the scope of work
                 </label>
                 <textarea
                   value={scopeDescription}
                   onChange={(e) => setScopeDescription(e.target.value)}
                   placeholder={`What exactly are you providing? Be specific — the AI will use this directly in the contract.\n\nExample: Full interior and exterior vehicle detailing including hand wash, clay bar treatment, paint correction, ceramic coating, and interior deep clean.`}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none leading-relaxed"
+                  className="w-full px-3 py-2 rounded-lg border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40 focus:border-transparent resize-none leading-relaxed"
                   rows={4}
                 />
-                <p className="text-xs text-slate-400 mt-1">The more specific you are, the stronger your contract protection.</p>
+                <p className="text-xs text-white/40 mt-1">The more specific you are, the stronger your contract protection.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Duration / timeline</label>
+                <label className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Duration / timeline</label>
                 <div className="grid grid-cols-3 gap-2">
                   {DURATION_OPTIONS.map((d) => (
-                    <button key={d.value} onClick={() => setDuration(d.value)} className={`py-2 px-3 text-xs rounded-lg border text-center transition-all ${duration === d.value ? "border-blue-500 bg-blue-50 text-blue-700 font-semibold" : "border-slate-200 text-slate-600 hover:border-slate-300"}`}>
+                    <button key={d.value} onClick={() => setDuration(d.value)} className={`py-2 px-3 text-xs rounded-lg border text-center transition-all ${duration === d.value ? "border-blue-500 bg-blue-50 text-blue-400 font-semibold" : "border-white/10 text-white/60 hover:border-white/15"}`}>
                       {d.label}
                     </button>
                   ))}
@@ -431,36 +431,36 @@ export function GenerateContractModal({ businessId, onClose, prefill }: Props) {
             <div className="px-6 py-5 space-y-5">
               {/* Payment */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Payment & compensation</label>
+                <label className="block text-xs font-semibold text-white/60 mb-2 uppercase tracking-wide">Payment & compensation</label>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-slate-500 mb-1">Contract value (optional)</label>
+                    <label className="block text-xs text-white/50 mb-1">Contract value (optional)</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
-                      <input value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="0.00" className="w-full h-9 pl-7 pr-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">$</span>
+                      <input value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="0.00" className="w-full h-9 pl-7 pr-3 rounded-lg border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40" />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-500 mb-1">Payment schedule</label>
-                    <select value={paymentSchedule} onChange={(e) => setPaymentSchedule(e.target.value)} className="w-full h-9 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <label className="block text-xs text-white/50 mb-1">Payment schedule</label>
+                    <select value={paymentSchedule} onChange={(e) => setPaymentSchedule(e.target.value)} className="w-full h-9 px-3 rounded-lg border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40 bg-white/5 text-white">
                       {PAYMENT_SCHEDULES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
                     </select>
                   </div>
                 </div>
                 <label className="flex items-center gap-2 mt-2 cursor-pointer">
-                  <div onClick={() => setLateFeeEnabled(!lateFeeEnabled)} className={`w-8 h-4.5 rounded-full relative transition-colors ${lateFeeEnabled ? "bg-blue-500" : "bg-slate-300"}`} style={{ height: "18px" }}>
+                  <div onClick={() => setLateFeeEnabled(!lateFeeEnabled)} className={`w-8 h-4.5 rounded-full relative transition-colors ${lateFeeEnabled ? "bg-[#00CF31]" : "bg-white/20"}`} style={{ height: "18px" }}>
                     <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200 ${lateFeeEnabled ? "translate-x-4" : "translate-x-0.5"}`} />
                   </div>
-                  <span className="text-xs text-slate-600">Include 1.5%/month late payment fee</span>
+                  <span className="text-xs text-white/60">Include 1.5%/month late payment fee</span>
                 </label>
               </div>
 
               {/* Termination */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Termination notice required</label>
+                <label className="block text-xs font-semibold text-white/60 mb-2 uppercase tracking-wide">Termination notice required</label>
                 <div className="flex gap-2">
                   {NOTICE_OPTIONS.map((n) => (
-                    <button key={n.value} onClick={() => setTerminationNotice(n.value)} className={`flex-1 py-2 text-xs rounded-lg border transition-all ${terminationNotice === n.value ? "border-blue-500 bg-blue-50 text-blue-700 font-semibold" : "border-slate-200 text-slate-600 hover:border-slate-300"}`}>
+                    <button key={n.value} onClick={() => setTerminationNotice(n.value)} className={`flex-1 py-2 text-xs rounded-lg border transition-all ${terminationNotice === n.value ? "border-blue-500 bg-blue-50 text-blue-400 font-semibold" : "border-white/10 text-white/60 hover:border-white/15"}`}>
                       {n.label}
                     </button>
                   ))}
@@ -469,31 +469,31 @@ export function GenerateContractModal({ businessId, onClose, prefill }: Props) {
 
               {/* Liability */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Liability cap</label>
+                <label className="block text-xs font-semibold text-white/60 mb-2 uppercase tracking-wide">Liability cap</label>
                 <div className="flex gap-2">
                   {(["1x", "2x", "none"] as const).map((cap) => (
-                    <button key={cap} onClick={() => setLiabilityCap(cap)} className={`flex-1 py-2 text-xs rounded-lg border transition-all ${liabilityCap === cap ? "border-blue-500 bg-blue-50 text-blue-700 font-semibold" : "border-slate-200 text-slate-600 hover:border-slate-300"}`}>
+                    <button key={cap} onClick={() => setLiabilityCap(cap)} className={`flex-1 py-2 text-xs rounded-lg border transition-all ${liabilityCap === cap ? "border-blue-500 bg-blue-50 text-blue-400 font-semibold" : "border-white/10 text-white/60 hover:border-white/15"}`}>
                       {cap === "1x" ? "1× contract value" : cap === "2x" ? "2× contract value" : "No cap"}
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-slate-400 mt-1">Limits how much you can be sued for. "1× contract" is the industry standard.</p>
+                <p className="text-xs text-white/40 mt-1">Limits how much you can be sued for. "1× contract" is the industry standard.</p>
               </div>
 
               {/* Optional clauses */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Include these clauses</label>
+                <label className="block text-xs font-semibold text-white/60 mb-2 uppercase tracking-wide">Include these clauses</label>
                 <div className="space-y-2">
                   {OPTIONAL_CLAUSES.map((clause) => (
                     <label key={clause.id} className="flex items-start gap-2.5 cursor-pointer group">
-                      <div onClick={() => toggleClause(clause.id)} className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${selectedClauses.has(clause.id) ? "bg-blue-500 border-blue-500" : "border-slate-300 group-hover:border-slate-400"}`}>
+                      <div onClick={() => toggleClause(clause.id)} className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${selectedClauses.has(clause.id) ? "bg-[#00CF31] border-[#00CF31]" : "border-white/15 group-hover:border-white/30"}`}>
                         {selectedClauses.has(clause.id) && (
                           <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                           </svg>
                         )}
                       </div>
-                      <span className="text-sm text-slate-700">{clause.label}</span>
+                      <span className="text-sm text-white/70">{clause.label}</span>
                     </label>
                   ))}
                 </div>
@@ -504,9 +504,9 @@ export function GenerateContractModal({ businessId, onClose, prefill }: Props) {
           {/* Step 4: Review summary */}
           {!generating && !html && step === 4 && (
             <div className="px-6 py-5 space-y-4">
-              <p className="text-sm text-slate-500">Review your contract settings, then generate.</p>
+              <p className="text-sm text-white/50">Review your contract settings, then generate.</p>
 
-              <div className="bg-slate-50 rounded-xl border border-slate-200 divide-y divide-slate-100">
+              <div className="bg-white/5 rounded-xl border border-white/10 divide-y divide-white/8">
                 {[
                   { label: "Contract type", value: CONTRACT_TYPES.find((t) => t.value === contractType)?.label },
                   { label: "For", value: clientCompany ? `${clientName} (${clientCompany})` : clientName },
@@ -518,46 +518,46 @@ export function GenerateContractModal({ businessId, onClose, prefill }: Props) {
                   { label: "Clauses included", value: `${selectedClauses.size} of ${OPTIONAL_CLAUSES.length}` },
                 ].map((row) => (
                   <div key={row.label} className="flex justify-between items-center px-4 py-2.5">
-                    <span className="text-xs text-slate-400">{row.label}</span>
-                    <span className="text-sm font-medium text-slate-800">{row.value}</span>
+                    <span className="text-xs text-white/40">{row.label}</span>
+                    <span className="text-sm font-medium text-white">{row.value}</span>
                   </div>
                 ))}
               </div>
 
               {scopeDescription && (
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
-                  <p className="text-xs font-semibold text-blue-700 mb-1">Scope of work</p>
-                  <p className="text-xs text-blue-600 leading-relaxed">{scopeDescription}</p>
+                  <p className="text-xs font-semibold text-blue-400 mb-1">Scope of work</p>
+                  <p className="text-xs text-[#00CF31] leading-relaxed">{scopeDescription}</p>
                 </div>
               )}
 
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
+                <div className="p-3 bg-red-50 border border-red-500/20 rounded-xl text-sm text-red-400">{error}</div>
               )}
             </div>
           )}
 
           {error && !generating && html && (
-            <div className="mx-6 mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
+            <div className="mx-6 mb-4 p-3 bg-red-50 border border-red-500/20 rounded-xl text-sm text-red-400">{error}</div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-slate-100">
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-white/8">
           {/* Preview state footer */}
           {html && !generating && (
             <>
-              <button onClick={() => { setHtml(null); setStep(4); }} className="text-sm text-slate-500 hover:text-slate-700">
+              <button onClick={() => { setHtml(null); setStep(4); }} className="text-sm text-white/50 hover:text-white/70">
                 ← Edit
               </button>
               <div className="flex gap-2">
-                <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+                <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white/70 border border-white/15 rounded-lg hover:bg-white/5 transition-colors">
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   Download
                 </button>
-                <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+                <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white/70 border border-white/15 rounded-lg hover:bg-white/5 transition-colors">
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                   </svg>
@@ -573,7 +573,7 @@ export function GenerateContractModal({ businessId, onClose, prefill }: Props) {
           {/* Wizard navigation */}
           {!html && !generating && (
             <>
-              <button onClick={() => step > 1 ? setStep((s) => (s - 1) as Step) : onClose()} className="text-sm text-slate-500 hover:text-slate-700 transition-colors">
+              <button onClick={() => step > 1 ? setStep((s) => (s - 1) as Step) : onClose()} className="text-sm text-white/50 hover:text-white/70 transition-colors">
                 {step === 1 ? "Cancel" : "← Back"}
               </button>
               {step < 4 ? (

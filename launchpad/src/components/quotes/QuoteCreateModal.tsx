@@ -174,10 +174,10 @@ export function QuoteCreateModal({ business, onClose, onCreated }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="font-bold text-slate-900">New Quote</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+      <div className="glass-card rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+          <h2 className="font-bold text-white">New Quote</h2>
+          <button onClick={onClose} className="text-white/40 hover:text-white/60">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -186,42 +186,42 @@ export function QuoteCreateModal({ business, onClose, onCreated }: Props) {
 
         <div className="flex px-6 pt-4 gap-1">
           {steps.map((s, i) => (
-            <div key={s} className={`flex-1 h-1 rounded-full ${i <= stepIdx ? "bg-blue-500" : "bg-slate-100"}`} />
+            <div key={s} className={`flex-1 h-1 rounded-full ${i <= stepIdx ? "bg-[#00CF31]" : "bg-white/8"}`} />
           ))}
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {step === "client" && (
             <>
-              <p className="text-sm font-semibold text-slate-700">Client information</p>
+              <p className="text-sm font-semibold text-white/70">Client information</p>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">Name *</label>
+                  <label className="block text-xs text-white/50 mb-1">Name *</label>
                   <input
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
                     placeholder="John Smith"
-                    className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full h-10 px-3 rounded-lg border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">Email</label>
+                  <label className="block text-xs text-white/50 mb-1">Email</label>
                   <input
                     value={clientEmail}
                     onChange={(e) => setClientEmail(e.target.value)}
                     type="email"
                     placeholder="john@example.com"
-                    className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full h-10 px-3 rounded-lg border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">Phone</label>
+                  <label className="block text-xs text-white/50 mb-1">Phone</label>
                   <input
                     value={clientPhone}
                     onChange={(e) => setClientPhone(e.target.value)}
                     type="tel"
                     placeholder="(555) 000-0000"
-                    className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full h-10 px-3 rounded-lg border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40"
                   />
                 </div>
               </div>
@@ -230,10 +230,10 @@ export function QuoteCreateModal({ business, onClose, onCreated }: Props) {
 
           {step === "services" && (
             <>
-              <p className="text-sm font-semibold text-slate-700">Select services</p>
+              <p className="text-sm font-semibold text-white/70">Select services</p>
               {business.usesPersonalVehicle && (
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">Vehicle type</label>
+                  <label className="block text-xs text-white/50 mb-1">Vehicle type</label>
                   <div className="grid grid-cols-2 gap-1.5">
                     {VEHICLE_TYPES.map((vt) => (
                       <button
@@ -247,8 +247,8 @@ export function QuoteCreateModal({ business, onClose, onCreated }: Props) {
                         }}
                         className={`px-3 py-2 text-xs rounded-lg border transition-colors ${
                           vehicleType.label === vt.label
-                            ? "border-blue-500 bg-blue-50 text-blue-700"
-                            : "border-slate-200 text-slate-600 hover:border-slate-300"
+                            ? "border-blue-500 bg-blue-50 text-blue-400"
+                            : "border-white/10 text-white/60 hover:border-white/15"
                         }`}
                       >
                         {vt.label}
@@ -267,22 +267,22 @@ export function QuoteCreateModal({ business, onClose, onCreated }: Props) {
                       key={svc.id}
                       onClick={() => toggleService(svc)}
                       className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-colors ${
-                        selected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                        selected ? "border-blue-500 bg-blue-50" : "border-white/10 hover:border-white/15"
                       }`}
                     >
                       <div>
-                        <p className="text-sm font-medium text-slate-900">{svc.name}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-sm font-medium text-white">{svc.name}</p>
+                        <p className="text-xs text-white/50">
                           {svc.estimatedDuration} min - ${svc.supplyCost} supplies
                         </p>
                       </div>
-                      <p className="text-sm font-semibold text-slate-900">${price}</p>
+                      <p className="text-sm font-semibold text-white">${price}</p>
                     </button>
                   );
                 })}
               </div>
               {selectedServices.length > 0 && (
-                <p className="text-sm font-semibold text-slate-700 text-right">
+                <p className="text-sm font-semibold text-white/70 text-right">
                   Subtotal: ${subtotal.toLocaleString()}
                 </p>
               )}
@@ -291,35 +291,35 @@ export function QuoteCreateModal({ business, onClose, onCreated }: Props) {
 
           {step === "schedule" && (
             <>
-              <p className="text-sm font-semibold text-slate-700">Schedule (optional)</p>
+              <p className="text-sm font-semibold text-white/70">Schedule (optional)</p>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-slate-500 mb-1">Date</label>
+                    <label className="block text-xs text-white/50 mb-1">Date</label>
                     <input
                       type="date"
                       value={scheduledDate}
                       onChange={(e) => setScheduledDate(e.target.value)}
-                      className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full h-10 px-3 rounded-lg border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-500 mb-1">Time</label>
+                    <label className="block text-xs text-white/50 mb-1">Time</label>
                     <input
                       type="time"
                       value={scheduledTime}
                       onChange={(e) => setScheduledTime(e.target.value)}
-                      className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full h-10 px-3 rounded-lg border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">Address</label>
+                  <label className="block text-xs text-white/50 mb-1">Address</label>
                   <input
                     value={scheduledAddress}
                     onChange={(e) => setScheduledAddress(e.target.value)}
                     placeholder="123 Main St, Tempe AZ"
-                    className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full h-10 px-3 rounded-lg border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40"
                   />
                 </div>
               </div>
@@ -328,37 +328,37 @@ export function QuoteCreateModal({ business, onClose, onCreated }: Props) {
 
           {step === "review" && (
             <>
-              <p className="text-sm font-semibold text-slate-700">Review quote</p>
-              <div className="bg-slate-50 rounded-xl p-4 space-y-2">
+              <p className="text-sm font-semibold text-white/70">Review quote</p>
+              <div className="bg-white/5 rounded-xl p-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Client</span>
-                  <span className="font-medium text-slate-900">{clientName}</span>
+                  <span className="text-white/50">Client</span>
+                  <span className="font-medium text-white">{clientName}</span>
                 </div>
                 {scheduledDate && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Scheduled</span>
-                    <span className="font-medium text-slate-900">{scheduledDate} {scheduledTime}</span>
+                    <span className="text-white/50">Scheduled</span>
+                    <span className="font-medium text-white">{scheduledDate} {scheduledTime}</span>
                   </div>
                 )}
-                <hr className="border-slate-200" />
+                <hr className="border-white/10" />
                 {lineItems.map((l) => (
                   <div key={l.serviceId} className="flex justify-between text-sm">
-                    <span className="text-slate-700">{l.serviceName}</span>
-                    <span className="font-medium text-slate-900">${l.total}</span>
+                    <span className="text-white/70">{l.serviceName}</span>
+                    <span className="font-medium text-white">${l.total}</span>
                   </div>
                 ))}
-                <hr className="border-slate-200" />
+                <hr className="border-white/10" />
                 <div className="flex justify-between text-sm font-bold">
                   <span>Total</span>
                   <span>${total.toLocaleString()}</span>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+              <div className="rounded-xl border border-white/10 p-4 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">AI pricing check</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-sm font-semibold text-white">AI pricing check</p>
+                    <p className="text-xs text-white/50">
                       Gemini 2.5 Flash reviews the quote margin and market positioning before you save.
                     </p>
                   </div>
@@ -369,39 +369,39 @@ export function QuoteCreateModal({ business, onClose, onCreated }: Props) {
 
                 {pricingAnalysis && (
                   <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="bg-white rounded-lg border border-slate-200 p-3">
-                      <p className="text-xs text-slate-400 mb-1">Suggested total</p>
-                      <p className="font-semibold text-slate-900">
+                    <div className="glass-card rounded-lg border border-white/10 p-3">
+                      <p className="text-xs text-white/40 mb-1">Suggested total</p>
+                      <p className="font-semibold text-white">
                         ${pricingAnalysis.suggestedPrice.toLocaleString()}
                       </p>
                     </div>
-                    <div className="bg-white rounded-lg border border-slate-200 p-3">
-                      <p className="text-xs text-slate-400 mb-1">Estimated margin</p>
-                      <p className="font-semibold text-slate-900">
+                    <div className="glass-card rounded-lg border border-white/10 p-3">
+                      <p className="text-xs text-white/40 mb-1">Estimated margin</p>
+                      <p className="font-semibold text-white">
                         {Math.round(pricingAnalysis.profitMargin)}%
                       </p>
                     </div>
-                    <div className="bg-white rounded-lg border border-slate-200 p-3 col-span-2">
-                      <p className="text-xs text-slate-400 mb-1">Market comparison</p>
-                      <p className="text-slate-700">{pricingAnalysis.marketComparison}</p>
+                    <div className="glass-card rounded-lg border border-white/10 p-3 col-span-2">
+                      <p className="text-xs text-white/40 mb-1">Market comparison</p>
+                      <p className="text-white/70">{pricingAnalysis.marketComparison}</p>
                     </div>
-                    <div className="bg-white rounded-lg border border-slate-200 p-3 col-span-2">
-                      <p className="text-xs text-slate-400 mb-1">Recommendation</p>
-                      <p className="text-slate-700">{pricingAnalysis.recommendation}</p>
+                    <div className="glass-card rounded-lg border border-white/10 p-3 col-span-2">
+                      <p className="text-xs text-white/40 mb-1">Recommendation</p>
+                      <p className="text-white/70">{pricingAnalysis.recommendation}</p>
                     </div>
                   </div>
                 )}
               </div>
 
-              {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+              {error && <p className="text-sm text-red-400 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
             </>
           )}
         </div>
 
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-white/10">
           <button
             onClick={() => (step === "client" ? onClose() : setStep(steps[stepIdx - 1]))}
-            className="text-sm text-slate-500 hover:text-slate-700"
+            className="text-sm text-white/50 hover:text-white/70"
           >
             {step === "client" ? "Cancel" : "Back"}
           </button>

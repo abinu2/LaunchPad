@@ -228,10 +228,10 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
   const isProcessing = stage === "uploading" || stage === "analyzing";
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6">
+    <div className="glass-card p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-slate-900">Upload contract for analysis</h2>
-        <button onClick={onCancel} className="text-slate-400 hover:text-slate-600">
+        <h2 className="font-semibold text-white">Upload contract for analysis</h2>
+        <button onClick={onCancel} className="text-white/40 hover:text-white/60">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -256,34 +256,34 @@ export function ContractUploadZone({ businessId, onComplete, onCancel }: Props) 
             className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${
               isDragActive
                 ? "border-blue-400 bg-blue-50"
-                : "border-slate-300 hover:border-blue-400 hover:bg-slate-50"
+                : "border-white/15 hover:border-blue-400 hover:bg-white/5"
             }`}
           >
             <input {...getInputProps()} />
-            <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-              <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-12 h-12 bg-white/8 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <svg className="w-6 h-6 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
             </div>
-            <p className="text-slate-700 font-medium mb-1">
+            <p className="text-white/70 font-medium mb-1">
               {isDragActive ? "Drop it here" : "Drag & drop or click to upload"}
             </p>
-            <p className="text-slate-400 text-sm">PDF or image (JPG, PNG, WEBP) · Max 100 MB</p>
+            <p className="text-white/40 text-sm">PDF or image (JPG, PNG, WEBP) · Max 100 MB</p>
           </div>
 
           {error && (
-            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-start justify-between">
+            <div className="mt-3 p-3 bg-red-50 border border-red-500/20 rounded-lg text-sm text-red-400 flex items-start justify-between">
               <span>{error}</span>
               <button
                 onClick={() => { setError(null); setStage("idle"); setTarget(0); }}
-                className="text-red-500 hover:text-red-700 text-xs font-medium ml-3 flex-shrink-0"
+                className="text-red-500 hover:text-red-400 text-xs font-medium ml-3 flex-shrink-0"
               >
                 Try again
               </button>
             </div>
           )}
 
-          <p className="text-xs text-slate-400 mt-3 text-center">
+          <p className="text-xs text-white/40 mt-3 text-center">
             AI reads every clause and flags risks, obligations, and renewal dates.
           </p>
         </>

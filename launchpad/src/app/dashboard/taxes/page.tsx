@@ -199,22 +199,22 @@ function QuarterCard({ label, due, period }: { label: string; due: Date; period:
   const isSoon = days > 14 && days <= 45;
 
   return (
-    <div className={`bg-white rounded-xl border p-4 ${isUrgent ? "border-red-200 bg-red-50" : isSoon ? "border-yellow-200 bg-yellow-50" : isPast ? "border-slate-200 opacity-60" : "border-slate-200"}`}>
+    <div className={`glass-card rounded-xl border p-4 ${isUrgent ? "border-red-500/20 bg-red-500/10" : isSoon ? "border-amber-500/20 bg-amber-500/10" : isPast ? "border-white/10 opacity-60" : "border-white/10"}`}>
       <div className="flex items-start justify-between">
         <div>
-          <p className="font-semibold text-slate-900 text-sm">{label} Estimated Tax</p>
-          <p className="text-xs text-slate-500 mt-0.5">{period}</p>
+          <p className="font-semibold text-white text-sm">{label} Estimated Tax</p>
+          <p className="text-xs text-white/50 mt-0.5">{period}</p>
         </div>
         <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-          isPast ? "bg-slate-100 text-slate-500" :
-          isUrgent ? "bg-red-100 text-red-700" :
-          isSoon ? "bg-yellow-100 text-yellow-700" :
-          "bg-slate-100 text-slate-600"
+          isPast ? "bg-white/8 text-white/50" :
+          isUrgent ? "bg-red-100 text-red-400" :
+          isSoon ? "bg-amber-500/15 text-amber-400" :
+          "bg-white/8 text-white/60"
         }`}>
           {isPast ? "Past" : days === 0 ? "Today!" : `${days}d`}
         </span>
       </div>
-      <p className="text-xs text-slate-600 mt-2">
+      <p className="text-xs text-white/60 mt-2">
         Due {due.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
       </p>
     </div>
@@ -225,44 +225,44 @@ function DeductionCard({ rule }: { rule: DeductionRule }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className={`bg-white rounded-xl border p-4 transition-all ${rule.eligible ? "border-slate-200" : "border-slate-100 opacity-60"}`}>
+    <div className={`glass-card rounded-xl border p-4 transition-all ${rule.eligible ? "border-white/10" : "border-white/8 opacity-60"}`}>
       <div className="flex items-start gap-3">
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
-          rule.eligible ? "bg-green-100" : "bg-slate-100"
+          rule.eligible ? "bg-green-500/15" : "bg-white/8"
         }`}>
           {rule.eligible ? (
             <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
             </svg>
           ) : (
-            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-medium text-slate-900 text-sm">{rule.title}</p>
+            <p className="font-medium text-white text-sm">{rule.title}</p>
             <div className="text-right flex-shrink-0">
               {rule.estimatedSavings > 0 && (
-                <p className="text-sm font-semibold text-green-700">
+                <p className="text-sm font-semibold text-green-400">
                   ~${Math.round(rule.estimatedSavings).toLocaleString()}
                 </p>
               )}
               <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
                 rule.difficulty === "easy" ? "bg-green-50 text-green-600" :
-                rule.difficulty === "moderate" ? "bg-yellow-50 text-yellow-700" :
+                rule.difficulty === "moderate" ? "bg-amber-500/10 text-amber-400" :
                 "bg-orange-50 text-orange-700"
               }`}>{rule.difficulty}</span>
             </div>
           </div>
-          <p className={`text-xs mt-1 ${rule.eligible ? "text-slate-500" : "text-slate-400"}`}>
+          <p className={`text-xs mt-1 ${rule.eligible ? "text-white/50" : "text-white/40"}`}>
             {rule.reason}
           </p>
           {expanded && (
-            <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
-              <p className="text-xs text-slate-600">{rule.description}</p>
-              <p className="text-xs text-slate-400">Form: <span className="text-slate-600 font-medium">{rule.form}</span></p>
+            <div className="mt-3 space-y-2 border-t border-white/8 pt-3">
+              <p className="text-xs text-white/60">{rule.description}</p>
+              <p className="text-xs text-white/40">Form: <span className="text-white/60 font-medium">{rule.form}</span></p>
             </div>
           )}
           <button
@@ -281,52 +281,52 @@ function MissedDeductionCard({ item }: { item: MissedDeduction }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className={`bg-white rounded-xl border p-4 ${
+    <div className={`glass-card rounded-xl border p-4 ${
       item.priority === "high" ? "border-orange-200" :
-      item.priority === "medium" ? "border-yellow-200" :
-      "border-slate-200"
+      item.priority === "medium" ? "border-amber-500/20" :
+      "border-white/10"
     }`}>
       <div className="flex items-start gap-3">
         <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
           item.priority === "high" ? "bg-orange-400" :
           item.priority === "medium" ? "bg-yellow-400" :
-          "bg-slate-300"
+          "bg-white/20"
         }`} />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-medium text-slate-900 text-sm">{item.title}</p>
+            <p className="font-medium text-white text-sm">{item.title}</p>
             <div className="text-right flex-shrink-0">
-              <p className="text-sm font-semibold text-green-700">
+              <p className="text-sm font-semibold text-green-400">
                 ~${Math.round(item.estimatedAnnualSavings).toLocaleString()}/yr
               </p>
               <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
                 item.difficulty === "easy" ? "bg-green-50 text-green-600" :
-                item.difficulty === "moderate" ? "bg-yellow-50 text-yellow-700" :
+                item.difficulty === "moderate" ? "bg-amber-500/10 text-amber-400" :
                 "bg-orange-50 text-orange-700"
               }`}>{item.difficulty}</span>
             </div>
           </div>
-          <p className="text-xs text-slate-500 mt-1 line-clamp-2">{item.description}</p>
+          <p className="text-xs text-white/50 mt-1 line-clamp-2">{item.description}</p>
           {expanded && (
-            <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+            <div className="mt-3 space-y-2 border-t border-white/8 pt-3">
               <div>
-                <p className="text-xs font-medium text-slate-700">Evidence from your data:</p>
-                <p className="text-xs text-slate-500 mt-0.5">{item.evidenceFromData}</p>
+                <p className="text-xs font-medium text-white/70">Evidence from your data:</p>
+                <p className="text-xs text-white/50 mt-0.5">{item.evidenceFromData}</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-700">How to claim:</p>
-                <p className="text-xs text-slate-500 mt-0.5">{item.howToClaim}</p>
+                <p className="text-xs font-medium text-white/70">How to claim:</p>
+                <p className="text-xs text-white/50 mt-0.5">{item.howToClaim}</p>
               </div>
               {item.irsForm && (
-                <p className="text-xs text-slate-400">Form: <span className="text-slate-600 font-medium">{item.irsForm}</span></p>
+                <p className="text-xs text-white/40">Form: <span className="text-white/60 font-medium">{item.irsForm}</span></p>
               )}
               {item.documentationNeeded.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-slate-700">Documentation needed:</p>
+                  <p className="text-xs font-medium text-white/70">Documentation needed:</p>
                   <ul className="mt-0.5 space-y-0.5">
                     {item.documentationNeeded.map((d, i) => (
-                      <li key={i} className="text-xs text-slate-500 flex items-center gap-1">
-                        <span className="w-1 h-1 rounded-full bg-slate-300 flex-shrink-0" />
+                      <li key={i} className="text-xs text-white/50 flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-white/20 flex-shrink-0" />
                         {d}
                       </li>
                     ))}
@@ -425,13 +425,13 @@ export default function TaxesPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Tax Intelligence</h1>
-          <p className="text-slate-500 text-sm mt-1">Deduction strategies and AI-powered tax analysis for {business.businessName}</p>
+          <h1 className="text-2xl font-bold text-white">Tax Intelligence</h1>
+          <p className="text-white/50 text-sm mt-1">Deduction strategies and AI-powered tax analysis for {business.businessName}</p>
         </div>
         <button
           onClick={runAIAnalysis}
           disabled={aiLoading}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-[#00CF31] text-black font-semibold hover:bg-[#00b82c] disabled:opacity-60 transition-colors"
         >
           {aiLoading ? (
             <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block" /> Analyzing...</>
@@ -448,43 +448,43 @@ export default function TaxesPage() {
 
       {/* Tax health summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">YTD Net Profit</p>
-          <p className="text-xl font-bold text-slate-900 mt-1">${Math.round(ytdProfit).toLocaleString()}</p>
-          <p className="text-xs text-slate-400 mt-0.5">{business.entityType.replace("_", " ")}</p>
+        <div className="glass-card rounded-xl border border-white/10 p-4">
+          <p className="text-xs text-white/40 font-medium uppercase tracking-wide">YTD Net Profit</p>
+          <p className="text-xl font-bold text-white mt-1">${Math.round(ytdProfit).toLocaleString()}</p>
+          <p className="text-xs text-white/40 mt-0.5">{business.entityType.replace("_", " ")}</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Est. Tax Liability</p>
-          <p className="text-xl font-bold text-red-600 mt-1">${Math.round(estimatedTaxOwed).toLocaleString()}</p>
-          <p className="text-xs text-slate-400 mt-0.5">~30% effective rate</p>
+        <div className="glass-card rounded-xl border border-white/10 p-4">
+          <p className="text-xs text-white/40 font-medium uppercase tracking-wide">Est. Tax Liability</p>
+          <p className="text-xl font-bold text-red-400 mt-1">${Math.round(estimatedTaxOwed).toLocaleString()}</p>
+          <p className="text-xs text-white/40 mt-0.5">~30% effective rate</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Potential Savings</p>
-          <p className="text-xl font-bold text-green-700 mt-1">${Math.round(totalPotentialSavings).toLocaleString()}</p>
-          <p className="text-xs text-slate-400 mt-0.5">from eligible deductions</p>
+        <div className="glass-card rounded-xl border border-white/10 p-4">
+          <p className="text-xs text-white/40 font-medium uppercase tracking-wide">Potential Savings</p>
+          <p className="text-xl font-bold text-green-400 mt-1">${Math.round(totalPotentialSavings).toLocaleString()}</p>
+          <p className="text-xs text-white/40 mt-0.5">from eligible deductions</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Miles Tracked</p>
-          <p className="text-xl font-bold text-slate-900 mt-1">{totalMiles.toLocaleString()}</p>
-          <p className="text-xs text-slate-400 mt-0.5">${(totalMiles * 0.70).toFixed(0)} deductible</p>
+        <div className="glass-card rounded-xl border border-white/10 p-4">
+          <p className="text-xs text-white/40 font-medium uppercase tracking-wide">Miles Tracked</p>
+          <p className="text-xl font-bold text-white mt-1">{totalMiles.toLocaleString()}</p>
+          <p className="text-xs text-white/40 mt-0.5">${(totalMiles * 0.70).toFixed(0)} deductible</p>
         </div>
       </div>
 
       {/* Quarterly tax calendar */}
       <div>
-        <h2 className="text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wide">Estimated Tax Calendar ({currentYr})</h2>
+        <h2 className="text-sm font-semibold text-white/70 mb-3 uppercase tracking-wide">Estimated Tax Calendar ({currentYr})</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {quarters.map((q) => (
             <QuarterCard key={q.label} {...q} />
           ))}
         </div>
-        <p className="text-xs text-slate-400 mt-2">
+        <p className="text-xs text-white/40 mt-2">
           Pay ~25% of estimated annual tax per quarter. Use IRS Form 1040-ES. Underpayment penalty applies if you owe &gt;$1,000.
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-200">
+      <div className="flex gap-1 border-b border-white/10">
         {[
           { id: "strategies", label: "Deduction Strategies" },
           { id: "ai-analysis", label: "AI Analysis" },
@@ -495,7 +495,7 @@ export default function TaxesPage() {
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
               activeTab === t.id
                 ? "border-blue-600 text-blue-600"
-                : "border-transparent text-slate-500 hover:text-slate-700"
+                : "border-transparent text-white/50 hover:text-white/70"
             }`}
           >
             {t.label}
@@ -526,8 +526,8 @@ export default function TaxesPage() {
 
           {/* SE tax breakdown */}
           {isPassThrough && ytdProfit > 0 && (
-            <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-              <h3 className="font-semibold text-slate-800 text-sm mb-3">Self-Employment Tax Breakdown</h3>
+            <div className="bg-white/5 rounded-xl border border-white/10 p-4">
+              <h3 className="font-semibold text-white text-sm mb-3">Self-Employment Tax Breakdown</h3>
               <div className="space-y-2 text-sm">
                 {[
                   { label: "Net profit", value: `$${Math.round(ytdProfit).toLocaleString()}` },
@@ -536,7 +536,7 @@ export default function TaxesPage() {
                   { label: "÷ 2 (deductible half)", value: `-$${Math.round(seTax / 2).toLocaleString()}` },
                   { label: "Effective SE cost", value: `$${Math.round(seTax / 2).toLocaleString()}`, highlight: true },
                 ].map((row) => (
-                  <div key={row.label} className={`flex justify-between ${row.highlight ? "font-semibold text-slate-900 border-t border-slate-200 pt-2" : "text-slate-600"}`}>
+                  <div key={row.label} className={`flex justify-between ${row.highlight ? "font-semibold text-white border-t border-white/10 pt-2" : "text-white/60"}`}>
                     <span>{row.label}</span>
                     <span className={row.label.startsWith("÷") ? "text-green-600" : ""}>{row.value}</span>
                   </div>
@@ -551,19 +551,19 @@ export default function TaxesPage() {
       {activeTab === "ai-analysis" && (
         <div className="space-y-4">
           {!aiResult && !aiLoading && !aiError && (
-            <div className="bg-white border border-dashed border-slate-300 rounded-xl p-12 text-center">
+            <div className="glass-card border border-dashed border-white/15 rounded-xl p-12 text-center">
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
                 <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.13A3.5 3.5 0 0112 18.5a3.5 3.5 0 01-3.093-1.47l-.347-.13z" />
                 </svg>
               </div>
-              <p className="text-slate-700 font-medium mb-1">AI-Powered Tax Analysis</p>
-              <p className="text-slate-400 text-sm mb-4 max-w-sm mx-auto">
+              <p className="text-white/70 font-medium mb-1">AI-Powered Tax Analysis</p>
+              <p className="text-white/40 text-sm mb-4 max-w-sm mx-auto">
                 Gemini scans your actual receipts and bank transactions to find missed deductions and mis-categorized expenses.
               </p>
               <button
                 onClick={runAIAnalysis}
-                className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-5 py-2 bg-[#00CF31] text-black font-semibold hover:bg-[#00b82c] transition-colors"
               >
                 Analyze my expenses
               </button>
@@ -585,7 +585,7 @@ export default function TaxesPage() {
           )}
 
           {aiError && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400">
               {aiError}
             </div>
           )}
@@ -599,23 +599,23 @@ export default function TaxesPage() {
 
               {/* Savings banner */}
               <div className="grid grid-cols-3 gap-3">
-                <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-                  <p className="text-2xl font-bold text-green-700">${Math.round(aiResult.totalEstimatedSavings).toLocaleString()}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Total potential savings</p>
+                <div className="glass-card rounded-xl border border-white/10 p-4 text-center">
+                  <p className="text-2xl font-bold text-green-400">${Math.round(aiResult.totalEstimatedSavings).toLocaleString()}</p>
+                  <p className="text-xs text-white/40 mt-0.5">Total potential savings</p>
                 </div>
-                <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                <div className="glass-card rounded-xl border border-white/10 p-4 text-center">
                   <p className="text-2xl font-bold text-orange-600">{aiResult.missedDeductions.filter((d) => d.priority === "high").length}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">High-priority flags</p>
+                  <p className="text-xs text-white/40 mt-0.5">High-priority flags</p>
                 </div>
-                <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-                  <p className="text-2xl font-bold text-slate-900">{aiResult.actionItems.length}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Action items</p>
+                <div className="glass-card rounded-xl border border-white/10 p-4 text-center">
+                  <p className="text-2xl font-bold text-white">{aiResult.actionItems.length}</p>
+                  <p className="text-xs text-white/40 mt-0.5">Action items</p>
                 </div>
               </div>
 
               {/* Missed deductions */}
               <div>
-                <h3 className="font-semibold text-slate-800 mb-3">Missed / Under-Claimed Deductions</h3>
+                <h3 className="font-semibold text-white mb-3">Missed / Under-Claimed Deductions</h3>
                 <div className="grid gap-3 md:grid-cols-2">
                   {aiResult.missedDeductions.map((item, i) => (
                     <MissedDeductionCard key={i} item={item} />
@@ -625,18 +625,18 @@ export default function TaxesPage() {
 
               {/* Action items */}
               <div>
-                <h3 className="font-semibold text-slate-800 mb-3">Action Items</h3>
-                <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
+                <h3 className="font-semibold text-white mb-3">Action Items</h3>
+                <div className="glass-card rounded-xl border border-white/10 divide-y divide-white/8">
                   {aiResult.actionItems.map((item, i) => (
                     <div key={i} className="flex items-start gap-3 px-4 py-3">
                       <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                         {i + 1}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-700">{item.action}</p>
+                        <p className="text-sm text-white/70">{item.action}</p>
                         <div className="flex gap-3 mt-1">
                           {item.deadline && (
-                            <span className="text-xs text-slate-400">Due: {item.deadline}</span>
+                            <span className="text-xs text-white/40">Due: {item.deadline}</span>
                           )}
                           <span className="text-xs text-green-600 font-medium">{item.estimatedImpact}</span>
                         </div>
@@ -675,7 +675,7 @@ export default function TaxesPage() {
       )}
 
       {/* Disclaimer */}
-      <p className="text-xs text-slate-400 border-t border-slate-100 pt-4">
+      <p className="text-xs text-white/40 border-t border-white/8 pt-4">
         Tax estimates are for informational purposes only and not tax advice. Consult a CPA or enrolled agent before making tax decisions. Savings estimates assume a ~30% combined federal + self-employment effective rate.
       </p>
     </div>

@@ -11,18 +11,18 @@ import type { Contract } from "@/types/contract";
 export const dynamic = "force-dynamic";
 
 const riskColors = {
-  low: "bg-green-100 text-green-700",
-  medium: "bg-yellow-100 text-yellow-700",
-  high: "bg-red-100 text-red-700",
-  critical: "bg-red-200 text-red-800",
+  low: "bg-green-500/15 text-green-400 border border-green-500/20",
+  medium: "bg-amber-500/15 text-amber-400 border border-amber-500/20",
+  high: "bg-red-500/15 text-red-400 border border-red-500/20",
+  critical: "bg-red-500/25 text-red-300 border border-red-500/30",
 };
 
 const statusColors = {
-  active: "bg-green-100 text-green-700",
-  expiring_soon: "bg-yellow-100 text-yellow-700",
-  expired: "bg-red-100 text-red-700",
-  draft: "bg-slate-100 text-slate-600",
-  under_review: "bg-blue-100 text-blue-700",
+  active: "bg-green-500/15 text-green-400 border border-green-500/20",
+  expiring_soon: "bg-amber-500/15 text-amber-400 border border-amber-500/20",
+  expired: "bg-red-500/15 text-red-400 border border-red-500/20",
+  draft: "bg-white/10 text-white/60 border border-white/10",
+  under_review: "bg-blue-500/15 text-blue-400 border border-blue-500/20",
 };
 
 export default function ProtectionPage() {
@@ -50,12 +50,12 @@ export default function ProtectionPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Contract Vault</h1>
-          <p className="text-slate-500 text-sm mt-1">{contracts.length} contract{contracts.length !== 1 ? "s" : ""} · Am I Protected?</p>
+          <h1 className="text-2xl font-bold text-white">Contract Vault</h1>
+          <p className="text-white/50 text-sm mt-1">{contracts.length} contract{contracts.length !== 1 ? "s" : ""} · Am I Protected?</p>
         </div>
         <Link
           href="/contracts"
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          className="px-4 py-2 bg-[#00CF31] text-black text-sm font-semibold rounded-lg hover:bg-[#00b82c] transition-colors"
         >
           Upload contract
         </Link>
@@ -63,8 +63,8 @@ export default function ProtectionPage() {
 
       {/* Upcoming deadlines */}
       {upcoming.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="font-semibold text-slate-900 mb-3">Upcoming deadlines</h2>
+        <div className="glass-card rounded-xl p-5">
+          <h2 className="font-semibold text-white mb-3">Upcoming deadlines</h2>
           <div className="space-y-2">
             {(() => {
               const now = new Date();
@@ -73,8 +73,8 @@ export default function ProtectionPage() {
                 const days = date ? Math.ceil((new Date(date).getTime() - now.getTime()) / 86400000) : null;
                 return (
                   <div key={c.id} className="flex items-center justify-between text-sm">
-                    <span className="text-slate-700">{c.counterpartyName}</span>
-                    <span className={`text-xs font-medium ${days !== null && days <= 14 ? "text-red-600" : "text-slate-500"}`}>
+                    <span className="text-white/70">{c.counterpartyName}</span>
+                    <span className={`text-xs font-medium ${days !== null && days <= 14 ? "text-red-400" : "text-white/50"}`}>
                       {c.autoRenewalDate ? "Auto-renews" : "Expires"} {days !== null ? `in ${days}d` : date}
                     </span>
                   </div>
@@ -87,20 +87,20 @@ export default function ProtectionPage() {
 
       {/* Contract list */}
       {contracts.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center">
-          <p className="text-slate-500 mb-4">No contracts yet. Upload your first contract to get AI-powered analysis.</p>
-          <Link href="/contracts" className="text-blue-600 text-sm font-medium hover:underline">
+        <div className="glass-card rounded-xl border-dashed p-12 text-center">
+          <p className="text-white/50 mb-4">No contracts yet. Upload your first contract to get AI-powered analysis.</p>
+          <Link href="/contracts" className="text-[#00CF31] text-sm font-medium hover:underline">
             Upload a contract →
           </Link>
         </div>
       ) : (
         <div className="space-y-3">
           {contracts.map((c) => (
-            <Link key={c.id} href={`/contracts/${c.id}`} className="block bg-white rounded-xl border border-slate-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all">
+            <Link key={c.id} href={`/contracts/${c.id}`} className="block glass-card rounded-xl p-4 hover:border-[#00CF31]/30 hover:shadow-lg transition-all">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-medium text-slate-900 truncate">{c.counterpartyName}</p>
-                  <p className="text-sm text-slate-500 capitalize">{c.contractType.replace("_", " ")}</p>
+                  <p className="font-medium text-white truncate">{c.counterpartyName}</p>
+                  <p className="text-sm text-white/50 capitalize">{c.contractType.replace("_", " ")}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {c.analysis?.riskLevel && (
@@ -114,7 +114,7 @@ export default function ProtectionPage() {
                 </div>
               </div>
               {c.monthlyValue && (
-                <p className="text-xs text-slate-400 mt-2">${c.monthlyValue.toLocaleString()}/mo</p>
+                <p className="text-xs text-white/40 mt-2">${c.monthlyValue.toLocaleString()}/mo</p>
               )}
             </Link>
           ))}

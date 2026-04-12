@@ -10,23 +10,23 @@ interface Props {
 
 const riskConfig = {
   safe: {
-    border: "border-green-200",
+    border: "border-green-500/20",
     bg: "bg-green-50",
-    badge: "bg-green-100 text-green-700",
+    badge: "bg-green-500/15 text-green-400",
     dot: "bg-green-400",
     icon: "✓",
   },
   caution: {
-    border: "border-yellow-200",
-    bg: "bg-yellow-50",
-    badge: "bg-yellow-100 text-yellow-700",
+    border: "border-amber-500/20",
+    bg: "bg-amber-500/10",
+    badge: "bg-amber-500/15 text-amber-400",
     dot: "bg-yellow-400",
     icon: "⚠",
   },
   danger: {
-    border: "border-red-200",
+    border: "border-red-500/20",
     bg: "bg-red-50",
-    badge: "bg-red-100 text-red-700",
+    badge: "bg-red-500/15 text-red-400",
     dot: "bg-red-400",
     icon: "✗",
   },
@@ -61,8 +61,8 @@ export function ClauseAccordion({ clauses, defaultOpen = false }: Props) {
                 {cfg.icon}
               </span>
               <div className="flex-1 min-w-0">
-                <span className="text-sm font-medium text-slate-900">
-                  {clause.clauseNumber && <span className="text-slate-400 mr-1">{clause.clauseNumber}</span>}
+                <span className="text-sm font-medium text-white">
+                  {clause.clauseNumber && <span className="text-white/40 mr-1">{clause.clauseNumber}</span>}
                   {clause.clauseTitle}
                 </span>
               </div>
@@ -70,7 +70,7 @@ export function ClauseAccordion({ clauses, defaultOpen = false }: Props) {
                 {clause.riskLevel}
               </span>
               <svg
-                className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                className={`w-4 h-4 text-white/40 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -78,20 +78,20 @@ export function ClauseAccordion({ clauses, defaultOpen = false }: Props) {
             </button>
 
             {isOpen && (
-              <div className="px-4 py-4 bg-white border-t border-slate-100 space-y-3">
+              <div className="px-4 py-4 glass-card border-t border-white/8 space-y-3">
                 {/* Plain English */}
                 <div>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">What this means</p>
-                  <p className="text-sm text-slate-700 leading-relaxed">{clause.plainEnglish}</p>
+                  <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">What this means</p>
+                  <p className="text-sm text-white/70 leading-relaxed">{clause.plainEnglish}</p>
                 </div>
 
                 {/* Original text */}
                 {clause.originalText && (
                   <details className="group">
-                    <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-600 select-none">
+                    <summary className="text-xs text-white/40 cursor-pointer hover:text-white/60 select-none">
                       Show original clause text
                     </summary>
-                    <blockquote className="mt-2 pl-3 border-l-2 border-slate-200 text-xs text-slate-500 italic leading-relaxed">
+                    <blockquote className="mt-2 pl-3 border-l-2 border-white/10 text-xs text-white/50 italic leading-relaxed">
                       {clause.originalText}
                     </blockquote>
                   </details>
@@ -100,8 +100,8 @@ export function ClauseAccordion({ clauses, defaultOpen = false }: Props) {
                 {/* Issue */}
                 {clause.issue && (
                   <div className="bg-red-50 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-red-700 mb-1">Issue</p>
-                    <p className="text-sm text-red-700">{clause.issue}</p>
+                    <p className="text-xs font-semibold text-red-400 mb-1">Issue</p>
+                    <p className="text-sm text-red-400">{clause.issue}</p>
                   </div>
                 )}
 
@@ -116,16 +116,16 @@ export function ClauseAccordion({ clauses, defaultOpen = false }: Props) {
                 {/* Recommendation */}
                 {clause.recommendation && (
                   <div className="bg-blue-50 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-blue-700 mb-1">Recommendation</p>
-                    <p className="text-sm text-blue-700">{clause.recommendation}</p>
+                    <p className="text-xs font-semibold text-blue-400 mb-1">Recommendation</p>
+                    <p className="text-sm text-blue-400">{clause.recommendation}</p>
                   </div>
                 )}
 
                 {/* Playbook clause */}
                 {clause.playbookClause && (
-                  <div className="bg-slate-50 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-slate-500 mb-1">Standard language</p>
-                    <p className="text-xs text-slate-600 italic">{clause.playbookClause}</p>
+                  <div className="bg-white/5 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-white/50 mb-1">Standard language</p>
+                    <p className="text-xs text-white/60 italic">{clause.playbookClause}</p>
                   </div>
                 )}
               </div>

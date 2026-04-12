@@ -48,10 +48,10 @@ function categorizeBankTx(tx: PlaidTransaction) {
 
 function KPICard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4">
-      <p className="text-xs text-slate-400 mb-1">{label}</p>
-      <p className="text-xl font-bold text-slate-900">{value}</p>
-      {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+    <div className="glass-card rounded-xl p-4">
+      <p className="text-xs text-white/40 mb-1">{label}</p>
+      <p className="text-xl font-bold text-white">{value}</p>
+      {sub && <p className="text-xs text-white/40 mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -86,7 +86,6 @@ export default function FinancesPage() {
   }, [load]);
 
   const handlePlaidSuccess = async () => {
-    // Auto-sync immediately after connecting so data appears right away
     setSyncing(true);
     try {
       await fetch("/api/plaid/sync", {
@@ -152,15 +151,15 @@ export default function FinancesPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Finances</h1>
-          <p className="text-slate-500 text-sm mt-1">Operating performance from quotes and receipts, with cash insight from Plaid.</p>
+          <h1 className="text-2xl font-bold text-white">Finances</h1>
+          <p className="text-white/50 text-sm mt-1">Operating performance from quotes and receipts, with cash insight from Plaid.</p>
         </div>
         <div className="flex items-center gap-2">
           {connections.length > 0 && (
             <button
               onClick={handleSync}
               disabled={syncing}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm text-white/70 border border-white/15 rounded-lg hover:bg-white/8 hover:text-white disabled:opacity-50 transition-colors"
             >
               {syncing ? "Syncing..." : "Sync"}
             </button>
@@ -177,54 +176,54 @@ export default function FinancesPage() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="font-semibold text-slate-900 mb-3">Meaningful insight</h2>
+        <div className="glass-card rounded-xl p-5">
+          <h2 className="font-semibold text-white mb-3">Meaningful insight</h2>
           <div className="space-y-3 text-sm">
-            <p className="text-slate-700">
+            <p className="text-white/70">
               {ytdProfit > 0
                 ? `You have kept about $${fmt(Math.round(ytdProfit))} after deductible expenses.`
                 : "Your current data shows expenses meeting or exceeding collected revenue."}
             </p>
-            <p className="text-slate-700">
+            <p className="text-white/70">
               {pendingQuotes.length > 0
                 ? `$${fmt(Math.round(finance.pendingIncome))} is still outstanding across ${finance.pendingQuoteCount} quote${finance.pendingQuoteCount !== 1 ? "s" : ""}.`
                 : "There is no pending quote revenue waiting to be collected right now."}
             </p>
-            <p className="text-slate-700">
+            <p className="text-white/70">
               {taxReserve > 0
                 ? `Setting aside roughly $${fmt(taxReserve)} for taxes would keep you closer to pace.`
                 : "Tax reserve pressure looks light until profit becomes positive."}
             </p>
-            <p className="text-slate-500 text-xs">
+            <p className="text-white/40 text-xs">
               Operating metrics here intentionally avoid counting bank inflows/outflows as revenue or expenses when the same activity is already reflected in quotes or receipts.
             </p>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="font-semibold text-slate-900 mb-3">Cash and tax signals</h2>
+        <div className="glass-card rounded-xl p-5">
+          <h2 className="font-semibold text-white mb-3">Cash and tax signals</h2>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-slate-500">Average monthly revenue</span>
-              <span className="font-medium text-slate-900">${fmt(Math.round(finance.averageMonthlyRevenue))}</span>
+              <span className="text-white/50">Average monthly revenue</span>
+              <span className="font-medium text-white">${fmt(Math.round(finance.averageMonthlyRevenue))}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Average monthly expenses</span>
-              <span className="font-medium text-slate-900">${fmt(Math.round(finance.averageMonthlyExpenses))}</span>
+              <span className="text-white/50">Average monthly expenses</span>
+              <span className="font-medium text-white">${fmt(Math.round(finance.averageMonthlyExpenses))}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Average monthly profit</span>
-              <span className="font-medium text-slate-900">${fmt(Math.round(finance.averageMonthlyProfit))}</span>
+              <span className="text-white/50">Average monthly profit</span>
+              <span className="font-medium text-white">${fmt(Math.round(finance.averageMonthlyProfit))}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Estimated tax reserve</span>
-              <span className="font-medium text-red-600">${fmt(taxReserve)}</span>
+              <span className="text-white/50">Estimated tax reserve</span>
+              <span className="font-medium text-red-400">${fmt(taxReserve)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Cash runway</span>
-              <span className="font-medium text-slate-900">{runway !== null ? `${runway} month${runway !== 1 ? "s" : ""}` : "--"}</span>
+              <span className="text-white/50">Cash runway</span>
+              <span className="font-medium text-white">{runway !== null ? `${runway} month${runway !== 1 ? "s" : ""}` : "--"}</span>
             </div>
-            <div className="pt-2 border-t border-slate-100 text-xs text-slate-400">
+            <div className="pt-2 border-t border-white/8 text-xs text-white/30">
               Bank snapshot: ${fmt(Math.round(bank.inflow))} in / ${fmt(Math.round(bank.outflow))} out.
             </div>
           </div>
@@ -232,28 +231,28 @@ export default function FinancesPage() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="font-semibold text-slate-900 mb-3">Recent operating months</h2>
+        <div className="glass-card rounded-xl p-5">
+          <h2 className="font-semibold text-white mb-3">Recent operating months</h2>
           {finance.monthlyData.length === 0 ? (
-            <p className="text-sm text-slate-400">Create paid quotes or scan receipts to populate this view.</p>
+            <p className="text-sm text-white/40">Create paid quotes or scan receipts to populate this view.</p>
           ) : (
             <div className="space-y-2">
               {[...finance.monthlyData].reverse().map((month) => (
                 <div key={month.month} className="grid grid-cols-4 text-sm">
-                  <span className="text-slate-500">{new Date(`${month.month}-01`).toLocaleString("default", { month: "short", year: "numeric" })}</span>
-                  <span className="text-right text-green-700">${fmt(Math.round(month.revenue))}</span>
-                  <span className="text-right text-red-600">${fmt(Math.round(month.expenses))}</span>
-                  <span className={`text-right font-medium ${month.profit >= 0 ? "text-emerald-700" : "text-orange-600"}`}>{month.profit >= 0 ? "+" : ""}${fmt(Math.round(month.profit))}</span>
+                  <span className="text-white/50">{new Date(`${month.month}-01`).toLocaleString("default", { month: "short", year: "numeric" })}</span>
+                  <span className="text-right text-[#00CF31]">${fmt(Math.round(month.revenue))}</span>
+                  <span className="text-right text-red-400">${fmt(Math.round(month.expenses))}</span>
+                  <span className={`text-right font-medium ${month.profit >= 0 ? "text-emerald-400" : "text-orange-400"}`}>{month.profit >= 0 ? "+" : ""}${fmt(Math.round(month.profit))}</span>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="font-semibold text-slate-900 mb-3">Expense mix</h2>
+        <div className="glass-card rounded-xl p-5">
+          <h2 className="font-semibold text-white mb-3">Expense mix</h2>
           {Object.keys(expenseMix).length === 0 ? (
-            <p className="text-sm text-slate-400">Scan receipts or sync transactions to see categories.</p>
+            <p className="text-sm text-white/40">Scan receipts or sync transactions to see categories.</p>
           ) : (
             <div className="space-y-2.5">
               {Object.entries(expenseMix)
@@ -264,11 +263,11 @@ export default function FinancesPage() {
                   return (
                     <div key={category}>
                       <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-600 capitalize">{category.replace(/_/g, " ")}</span>
-                        <span className="font-medium text-slate-900">${fmt(Math.round(amount))} <span className="text-slate-400 text-xs">({pct}%)</span></span>
+                        <span className="text-white/60 capitalize">{category.replace(/_/g, " ")}</span>
+                        <span className="font-medium text-white">${fmt(Math.round(amount))} <span className="text-white/40 text-xs">({pct}%)</span></span>
                       </div>
-                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-400 rounded-full" style={{ width: `${pct}%` }} />
+                      <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-[#00CF31]/60 rounded-full" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   );
@@ -278,31 +277,31 @@ export default function FinancesPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
+      <div className="glass-card rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-slate-900">Bank transactions</h2>
+          <h2 className="font-semibold text-white">Bank transactions</h2>
           <input
             value={txSearch}
             onChange={(e) => setTxSearch(e.target.value)}
             placeholder="Search transactions..."
-            className="w-full max-w-xs h-9 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full max-w-xs h-9 px-3 text-sm bg-white/8 border border-white/15 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40 text-white placeholder:text-white/30"
           />
         </div>
         {filteredTxs.length === 0 ? (
-          <p className="text-sm text-slate-400">No matching transactions.</p>
+          <p className="text-sm text-white/40">No matching transactions.</p>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-white/8">
             {filteredTxs.slice(0, 100).map((tx) => (
               <div key={tx.transaction_id} className="flex items-center justify-between py-3 text-sm">
                 <div className="min-w-0">
-                  <p className="font-medium text-slate-900 truncate">{tx.merchant_name ?? tx.name}</p>
-                  <p className="text-xs text-slate-400">
+                  <p className="font-medium text-white truncate">{tx.merchant_name ?? tx.name}</p>
+                  <p className="text-xs text-white/40">
                     {tx.date}
                     {tx.personal_finance_category?.primary && ` | ${tx.personal_finance_category.primary.replace(/_/g, " ").toLowerCase()}`}
                     {tx.payment_channel && ` | ${tx.payment_channel}`}
                   </p>
                 </div>
-                <span className={`font-medium ${tx.amount < 0 ? "text-green-600" : "text-slate-900"}`}>
+                <span className={`font-medium ${tx.amount < 0 ? "text-[#00CF31]" : "text-white/70"}`}>
                   {tx.amount < 0 ? "+" : "-"}${Math.abs(tx.amount).toFixed(2)}
                 </span>
               </div>

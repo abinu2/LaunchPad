@@ -73,17 +73,17 @@ export function GrowthQuadrant({ business, quotes, opportunities = [], actions =
   const totalPotential = opportunities.reduce((s, o) => s + o.amount.max, 0);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 h-full group-hover:border-blue-300 group-hover:shadow-sm transition-all">
+    <div className="glass-card rounded-xl p-5 h-full group-hover:border-[#00CF31]/30 group-hover:shadow-lg transition-all">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">What Should I Do Next?</p>
-          <p className="text-2xl font-bold text-slate-900">{displayItems.length}</p>
-          <p className="text-sm text-slate-500">
+          <p className="text-xs font-medium text-white/40 uppercase tracking-wide mb-1">What Should I Do Next?</p>
+          <p className="text-2xl font-bold text-white">{displayItems.length}</p>
+          <p className="text-sm text-white/50">
             {actions.length > 0 ? `${actions.length} action${actions.length !== 1 ? "s" : ""}` : "recommended actions"}
           </p>
         </div>
-        <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-          <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="w-10 h-10 bg-violet-500/15 rounded-full flex items-center justify-center">
+          <svg className="w-5 h-5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
           </svg>
         </div>
@@ -93,21 +93,21 @@ export function GrowthQuadrant({ business, quotes, opportunities = [], actions =
         {displayItems.map((item, i) => (
           <div key={i} className="flex gap-2.5">
             <div className="flex flex-col items-center gap-1 flex-shrink-0 pt-0.5">
-              <span className="text-xs font-bold text-slate-400">{i + 1}</span>
+              <span className="text-xs font-bold text-white/30">{i + 1}</span>
               <span className={`w-1.5 h-1.5 rounded-full ${URGENCY_DOT[item.urgency]}`} />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-900 leading-tight">{item.label}</p>
-              <p className="text-xs text-slate-500 mt-0.5 leading-tight">{item.sub}</p>
+              <p className="text-sm font-medium text-white leading-tight">{item.label}</p>
+              <p className="text-xs text-white/50 mt-0.5 leading-tight">{item.sub}</p>
             </div>
           </div>
         ))}
       </div>
 
       {totalPotential > 0 && (
-        <div className="pt-3 border-t border-slate-100">
-          <p className="text-xs text-slate-400">
-            {opportunities.length} opportunit{opportunities.length !== 1 ? "ies" : "y"} · <span className="font-medium text-green-700">${totalPotential.toLocaleString()} potential</span>
+        <div className="pt-3 border-t border-white/8">
+          <p className="text-xs text-white/40">
+            {opportunities.length} opportunit{opportunities.length !== 1 ? "ies" : "y"} · <span className="font-medium text-[#00CF31]">${totalPotential.toLocaleString()} potential</span>
           </p>
         </div>
       )}

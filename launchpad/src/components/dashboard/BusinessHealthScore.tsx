@@ -82,9 +82,9 @@ function calcGrowthScore(data: DashboardData): number {
 }
 
 function scoreColor(score: number) {
-  if (score >= 75) return { ring: "#22c55e", bg: "bg-green-100", text: "text-green-700", label: "Strong" };
-  if (score >= 50) return { ring: "#f59e0b", bg: "bg-amber-100", text: "text-amber-700", label: "Fair" };
-  return { ring: "#ef4444", bg: "bg-red-100", text: "text-red-700", label: "Needs attention" };
+  if (score >= 75) return { ring: "#00CF31", bg: "bg-green-500/15", text: "text-green-400", label: "Strong" };
+  if (score >= 50) return { ring: "#f59e0b", bg: "bg-amber-500/15", text: "text-amber-400", label: "Fair" };
+  return { ring: "#ef4444", bg: "bg-red-500/15", text: "text-red-400", label: "Needs attention" };
 }
 
 export function BusinessHealthScore({ data, business }: Props) {
@@ -144,14 +144,14 @@ export function BusinessHealthScore({ data, business }: Props) {
   ];
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
-      <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-4">Business Health Score</p>
+    <div className="glass-card rounded-xl p-5">
+      <p className="text-xs font-medium text-white/40 uppercase tracking-wide mb-4">Business Health Score</p>
 
       <div className="flex items-center gap-6">
         {/* Ring gauge */}
         <div className="relative flex-shrink-0">
           <svg width="96" height="96" viewBox="0 0 96 96">
-            <circle cx="48" cy="48" r={r} fill="none" stroke="#e2e8f0" strokeWidth="8" />
+            <circle cx="48" cy="48" r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
             <circle
               cx="48" cy="48" r={r}
               fill="none"
@@ -163,8 +163,8 @@ export function BusinessHealthScore({ data, business }: Props) {
               transform="rotate(-90 48 48)"
               style={{ transition: "stroke-dashoffset 0.8s cubic-bezier(0.22,1,0.36,1)" }}
             />
-            <text x="48" y="44" textAnchor="middle" fontSize="20" fontWeight="700" fill="#0f172a">{overall}</text>
-            <text x="48" y="58" textAnchor="middle" fontSize="10" fill="#64748b">/100</text>
+            <text x="48" y="44" textAnchor="middle" fontSize="20" fontWeight="700" fill="white">{overall}</text>
+            <text x="48" y="58" textAnchor="middle" fontSize="10" fill="rgba(255,255,255,0.5)">/100</text>
           </svg>
           <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] font-semibold ${bg} ${text}`}>
             {label}
@@ -176,8 +176,8 @@ export function BusinessHealthScore({ data, business }: Props) {
           {dimensions.map((d) => (
             <div key={d.label} className="flex items-center gap-2">
               <span className={`flex-shrink-0 ${d.color}`}>{d.icon}</span>
-              <span className="text-xs text-slate-500 w-16 flex-shrink-0">{d.label}</span>
-              <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <span className="text-xs text-white/50 w-16 flex-shrink-0">{d.label}</span>
+              <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full"
                   style={{
@@ -187,7 +187,7 @@ export function BusinessHealthScore({ data, business }: Props) {
                   }}
                 />
               </div>
-              <span className="text-xs font-medium text-slate-700 w-7 text-right flex-shrink-0">{d.score}</span>
+              <span className="text-xs font-medium text-white/70 w-7 text-right flex-shrink-0">{d.score}</span>
             </div>
           ))}
         </div>

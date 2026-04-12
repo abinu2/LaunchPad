@@ -87,7 +87,7 @@ export function PlaidConnectButton({ businessId, onSuccess, className, children 
         disabled={loading}
         className={
           className ??
-          "flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          "flex items-center gap-2 px-4 py-2 bg-[#00CF31] text-black font-semibold hover:bg-[#00b82c] disabled:opacity-50 transition-colors"
         }
       >
         {loading ? (
@@ -102,7 +102,7 @@ export function PlaidConnectButton({ businessId, onSuccess, className, children 
         )}
         {children ?? (loading ? "Connecting..." : "Connect bank account")}
       </button>
-      {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
     </div>
   );
 }

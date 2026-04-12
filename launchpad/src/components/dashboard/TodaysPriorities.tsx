@@ -13,17 +13,17 @@ interface Priority {
 const LEVEL_STYLES = {
   urgent: {
     dot: "bg-red-500",
-    badge: "bg-red-50 text-red-700 border-red-100",
+    badge: "bg-red-500/15 text-red-400 border-red-500/20",
     border: "border-l-red-500",
   },
   warning: {
     dot: "bg-amber-400",
-    badge: "bg-amber-50 text-amber-700 border-amber-100",
+    badge: "bg-amber-500/15 text-amber-400 border-amber-500/20",
     border: "border-l-amber-400",
   },
   info: {
     dot: "bg-blue-400",
-    badge: "bg-blue-50 text-blue-700 border-blue-100",
+    badge: "bg-blue-500/15 text-blue-400 border-blue-500/20",
     border: "border-l-blue-400",
   },
 };
@@ -167,10 +167,10 @@ export function TodaysPriorities({ data, business }: { data: DashboardData; busi
   const priorities = buildPriorities(data, business);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
+    <div className="glass-card rounded-xl p-5">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Today's Priorities</p>
-        <span className="text-xs text-slate-400">{priorities.filter((p) => p.level !== "info").length} items need attention</span>
+        <p className="text-xs font-medium text-white/40 uppercase tracking-wide">Today's Priorities</p>
+        <span className="text-xs text-white/40">{priorities.filter((p) => p.level !== "info").length} items need attention</span>
       </div>
 
       <div className="space-y-2">
@@ -187,12 +187,12 @@ export function TodaysPriorities({ data, business }: { data: DashboardData; busi
                     {CAT_LABEL[p.category]}
                   </span>
                 </div>
-                <p className="text-sm text-slate-700 leading-snug">{p.message}</p>
+                <p className="text-sm text-white/70 leading-snug">{p.message}</p>
               </div>
               {p.href && p.action && (
                 <Link
                   href={p.href}
-                  className="flex-shrink-0 text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline mt-0.5"
+                  className="flex-shrink-0 text-xs font-medium text-[#00CF31] hover:text-[#00b82c] hover:underline mt-0.5"
                 >
                   {p.action} →
                 </Link>

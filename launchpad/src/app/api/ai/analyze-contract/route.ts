@@ -1,17 +1,14 @@
 /**
  * POST /api/ai/analyze-contract
  *
- * Two-phase streaming response:
- *   Phase 1 — Groq streams JSON tokens to the client as they arrive.
- *              The client sees real progress instead of a frozen bar.
- *   Phase 2 — Once the full JSON is assembled, we write the Contract
- *              record to the DB and flush the final serialized contract.
+ * Two-phase streaming response via OpenRouter (Gemini 2.0 Flash):
+ *   Phase 1 — OpenRouter SSE tokens are forwarded to the client as they arrive.
+ *              The client sees real progress instead of a frozen loading bar.
+ *   Phase 2 — Once the full JSON is assembled, we persist the Contract to the DB
+ *              and flush the final serialized record as a sentinel.
  *
- * This keeps the Vercel Hobby connection alive well past 10 s and gives
- * the user visible forward motion throughout the analysis.
- *
- * PDFs  → pdf-parse + Groq text stream  (~4-7 s)
- * Images → Groq vision one-shot + stream (~3-5 s)
+ * PDFs   → pdf-parse text extraction → text stream   (~4–7 s)
+ * Images → Gemini vision one-shot + stream            (~3–5 s)
  */
 import { NextRequest } from "next/server";
 import { requireBusinessAccess } from "@/lib/api-auth";
@@ -23,16 +20,21 @@ import {
 } from "@/lib/document-ai";
 import { fetchWithRetry } from "@/lib/fetch-file";
 import { serializeContract } from "@/lib/serializers";
+import {
+  LAUNCHPAD_SYSTEM_PROMPT,
+  getAIHeaders,
+  getAIApiUrl,
+  getGroqModel,
+  getGroqVisionModel,
+  cleanJSON,
+  isGroqConfigured,
+} from "@/lib/groq";
 import type { Contract, ContractAnalysis, ContractObligation } from "@/types/contract";
 import { prisma } from "@/lib/prisma";
-import Groq from "groq-sdk";
 
-// Skip prerendering for this API route
 export const dynamic = "force-dynamic";
 
 const MAX_CONTRACT_CHARS = 40_000;
-const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
-const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL ?? "meta-llama/llama-4-scout-17b-16e-instruct";
 
 const CONTRACT_SCHEMA = `{
   "summary":"2-3 sentence plain English summary",
@@ -55,7 +57,7 @@ const CONTRACT_SCHEMA = `{
   "obligations":[{"description":"","party":"business|counterparty","triggerType":"date|event|recurring","dueDate":null,"recurringFrequency":null,"status":"pending"}]
 }`;
 
-function buildPrompt(contractText: string, bizName: string) {
+function buildTextPrompt(contractText: string, bizName: string) {
   return `You are a business attorney. Analyze this contract for "${bizName}". Be concise.
 
 CONTRACT TEXT:
@@ -74,10 +76,6 @@ Return ONLY valid JSON (no markdown):
 ${CONTRACT_SCHEMA}
 
 Score: 90-100=clean, 70-89=minor, 50-69=significant, <50=major.`;
-}
-
-function cleanJSON(text: string): string {
-  return text.replace(/^```(?:json)?\n?/m, "").replace(/\n?```$/m, "").trim();
 }
 
 type ContractAIResult = {
@@ -101,12 +99,60 @@ type ContractAIResult = {
   obligations: Omit<ContractObligation, "id" | "lastChecked">[];
 };
 
+/**
+ * Read an OpenRouter SSE stream and collect all token deltas.
+ * Simultaneously forwards each delta to the client via `onDelta`.
+ */
+async function readSSEStream(
+  responseBody: ReadableStream<Uint8Array>,
+  onDelta: (delta: string) => Promise<void>
+): Promise<string> {
+  const reader  = responseBody.getReader();
+  const decoder = new TextDecoder();
+  let fullText  = "";
+  let buffer    = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    // Keep the last (potentially incomplete) line in the buffer
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) continue;
+
+      const jsonStr = trimmed.slice(5).trim();
+      if (jsonStr === "[DONE]") return fullText;
+
+      try {
+        const parsed = JSON.parse(jsonStr) as {
+          choices?: { delta?: { content?: string } }[];
+        };
+        const delta = parsed.choices?.[0]?.delta?.content ?? "";
+        if (delta) {
+          fullText += delta;
+          await onDelta(delta);
+        }
+      } catch {
+        // Malformed SSE line — skip
+      }
+    }
+  }
+
+  return fullText;
+}
+
 export async function POST(req: NextRequest) {
   const stream = new TransformStream<Uint8Array, Uint8Array>();
   const writer = stream.writable.getWriter();
-  const enc = new TextEncoder();
+  const enc    = new TextEncoder();
 
-  const send = (data: unknown) => writer.write(enc.encode(JSON.stringify(data)));
+  const send  = async (data: unknown) =>
+    writer.write(enc.encode(JSON.stringify(data))).catch(() => {});
   const close = () => writer.close().catch(() => {});
 
   const run = async () => {
@@ -138,14 +184,9 @@ export async function POST(req: NextRequest) {
         return close();
       }
 
-      if (!process.env.GROQ_API_KEY) {
-        await send({ error: "GROQ_API_KEY is not configured" });
+      if (!isGroqConfigured()) {
+        await send({ error: "AI API key is not configured (set OPENROUTER_API_KEY or GROQ_API_KEY)" });
         return close();
-      }
-
-      // Mark uploaded file as processing
-      if (uploadedFileId) {
-        console.log("uploadedFileId provided but UploadedFile model not in schema:", uploadedFileId);
       }
 
       const [{ business }, fileBuffer] = await Promise.all([
@@ -156,75 +197,92 @@ export async function POST(req: NextRequest) {
       ]);
 
       const bizName = business.businessName ?? "the business owner";
-      const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+      const headers = getAIHeaders();
+      const apiUrl  = getAIApiUrl();
 
       let fullText = "";
 
-      // ── Stream Groq tokens to the client ──────────────────────────────────
+      const onDelta = async (delta: string) => {
+        await writer.write(enc.encode(delta)).catch(() => {});
+      };
+
+      // ── Stream AI tokens to the client ────────────────────────────────────
       if (isImageMimeType(normalizedMime)) {
-        // Vision: one-shot with streaming
+        // Vision: Gemini handles the image natively
         const base64 = fileBuffer.toString("base64");
-        const visionStream = await groq.chat.completions.create({
-          model: GROQ_VISION_MODEL,
-          stream: true,
-          messages: [{
-            role: "user",
-            content: [
-              { type: "image_url", image_url: { url: `data:${normalizedMime};base64,${base64}` } },
-              { type: "text", text: "IMPORTANT: Respond with valid JSON only. No markdown.\n\n" + buildVisionPrompt(bizName) },
+        const res = await fetch(apiUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            model: getGroqVisionModel(),
+            stream: true,
+            temperature: 0.1,
+            max_tokens: 4096,
+            messages: [
+              {
+                role: "system",
+                content:
+                  LAUNCHPAD_SYSTEM_PROMPT +
+                  "\n\nYou are a precise JSON API. Respond with valid JSON only — no markdown, no explanation.",
+              },
+              {
+                role: "user",
+                content: [
+                  { type: "image_url", image_url: { url: `data:${normalizedMime};base64,${base64}` } },
+                  { type: "text", text: "IMPORTANT: Respond with valid JSON only. No markdown.\n\n" + buildVisionPrompt(bizName) },
+                ],
+              },
             ],
-          }],
-          temperature: 0.1,
-          max_tokens: 4096,
+          }),
         });
 
-        for await (const chunk of visionStream) {
-          const delta = chunk.choices[0]?.delta?.content ?? "";
-          if (delta) {
-            fullText += delta;
-            // Send progress tokens so the client sees movement
-            await writer.write(enc.encode(delta)).catch(() => {});
-          }
+        if (!res.ok || !res.body) {
+          const errText = await res.text();
+          throw new Error(`Vision API error ${res.status}: ${errText.slice(0, 200)}`);
         }
+
+        fullText = await readSSEStream(res.body, onDelta);
       } else {
-        // Text: extract then stream
+        // Text: extract document text, then stream
         const contractText = await extractDocumentText(fileBuffer, normalizedMime, {
           minCharacters: 50,
           preferOcr: false,
         });
 
-        const textStream = await groq.chat.completions.create({
-          model: GROQ_MODEL,
-          stream: true,
-          messages: [
-            {
-              role: "system",
-              content: "You are a precise JSON API. Always respond with valid JSON only. No markdown, no explanation, no text outside the JSON object.",
-            },
-            { role: "user", content: buildPrompt(contractText, bizName) },
-          ],
-          temperature: 0.1,
-          max_tokens: 4096,
-          // NOTE: Do NOT set response_format: json_object with stream:true —
-          // Groq buffers the entire response before emitting any tokens when
-          // json_object mode is active, which defeats streaming entirely.
+        const res = await fetch(apiUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            model: getGroqModel(),
+            stream: true,
+            temperature: 0.1,
+            max_tokens: 4096,
+            // NOTE: Do NOT set response_format: json_object with stream:true —
+            // some providers buffer the entire response before emitting tokens.
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are a precise JSON API. Always respond with valid JSON only. No markdown, no explanation, no text outside the JSON object.",
+              },
+              { role: "user", content: buildTextPrompt(contractText, bizName) },
+            ],
+          }),
         });
 
-        for await (const chunk of textStream) {
-          const delta = chunk.choices[0]?.delta?.content ?? "";
-          if (delta) {
-            fullText += delta;
-            await writer.write(enc.encode(delta)).catch(() => {});
-          }
+        if (!res.ok || !res.body) {
+          const errText = await res.text();
+          throw new Error(`Text stream API error ${res.status}: ${errText.slice(0, 200)}`);
         }
+
+        fullText = await readSSEStream(res.body, onDelta);
       }
 
-      // ── Parse the assembled JSON ───────────────────────────────────────────
+      // ── Parse assembled JSON ───────────────────────────────────────────────
       let ai: ContractAIResult;
       try {
         ai = JSON.parse(cleanJSON(fullText)) as ContractAIResult;
       } catch {
-        // Try to extract JSON substring if model added surrounding text
         const match = fullText.match(/\{[\s\S]*\}/);
         if (match) {
           ai = JSON.parse(match[0]) as ContractAIResult;
@@ -237,7 +295,9 @@ export async function POST(req: NextRequest) {
       const now = new Date();
       let status: Contract["status"] = "active";
       if (ai.expirationDate) {
-        const days = Math.ceil((new Date(ai.expirationDate).getTime() - now.getTime()) / 86400000);
+        const days = Math.ceil(
+          (new Date(ai.expirationDate).getTime() - now.getTime()) / 86_400_000
+        );
         if (days < 0) status = "expired";
         else if (days <= 30) status = "expiring_soon";
       }
@@ -288,21 +348,22 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Update uploaded file record to link it to the contract
       if (uploadedFileId) {
-        console.log("uploadedFileId provided but UploadedFile model not in schema:", uploadedFileId);
+        // UploadedFile model not yet in schema — log for future linkage
+        console.log("uploadedFileId for future linkage:", uploadedFileId);
       }
 
-      // ── Send the final contract record as a sentinel ───────────────────────
-      // The client reads the stream, buffers all tokens, then on stream-end
-      // parses the last valid JSON object (the contract record).
+      // ── Send final sentinel ────────────────────────────────────────────────
       const serialized = serializeContract(contract);
-      await writer.write(enc.encode("\n__CONTRACT__" + JSON.stringify(serialized))).catch(() => {});
-
+      await writer
+        .write(enc.encode("\n__CONTRACT__" + JSON.stringify(serialized)))
+        .catch(() => {});
     } catch (err) {
       console.error("analyze-contract error:", err);
       const message = err instanceof Error ? err.message : "Contract analysis failed";
-      await writer.write(enc.encode("\n__ERROR__" + JSON.stringify({ error: message }))).catch(() => {});
+      await writer
+        .write(enc.encode("\n__ERROR__" + JSON.stringify({ error: message })))
+        .catch(() => {});
     } finally {
       close();
     }

@@ -98,7 +98,7 @@ Return plain text only.
   throw new Error(
     "Could not extract enough readable text from this document. " +
       (!isGroqConfigured() && !isGeminiConfigured()
-        ? "Set GROQ_API_KEY or GEMINI_API_KEY to enable OCR."
+        ? "Set OPENROUTER_API_KEY (or GROQ_API_KEY) to enable OCR."
         : "Try uploading a clearer scan.")
   );
 }

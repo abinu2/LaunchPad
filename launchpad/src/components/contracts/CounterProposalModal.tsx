@@ -29,16 +29,16 @@ export function CounterProposalModal({ draft, counterpartyName, onClose }: Props
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <div className="glass-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div>
-            <h2 className="font-bold text-slate-900">Counter-proposal draft</h2>
-            <p className="text-sm text-slate-500 mt-0.5">
+            <h2 className="font-bold text-white">Counter-proposal draft</h2>
+            <p className="text-sm text-white/50 mt-0.5">
               AI-drafted response to {counterpartyName}. Review before sending.
             </p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-white/40 hover:text-white/60 p-1">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -54,16 +54,16 @@ export function CounterProposalModal({ draft, counterpartyName, onClose }: Props
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          <pre className="text-sm text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
+          <pre className="text-sm text-white/70 whitespace-pre-wrap font-sans leading-relaxed">
             {draft}
           </pre>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-200">
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-white/10">
           <button
             onClick={handleDownload}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 text-sm text-white/70 border border-white/15 rounded-lg hover:bg-white/5 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -72,7 +72,7 @@ export function CounterProposalModal({ draft, counterpartyName, onClose }: Props
           </button>
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm text-white bg-[#00CF31] rounded-lg hover:bg-blue-700 transition-colors"
           >
             {copied ? (
               <>

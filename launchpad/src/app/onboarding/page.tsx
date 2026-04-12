@@ -113,7 +113,7 @@ export default function OnboardingPage() {
         ),
         title: "Contract Analysis",
         desc: "Upload any contract and get a plain-English breakdown of what it means, what to watch out for, and what you owe.",
-        color: "bg-blue-50 text-blue-600",
+        color: "bg-blue-50 text-[#00CF31]",
       },
       {
         icon: (
@@ -124,7 +124,7 @@ export default function OnboardingPage() {
         ),
         title: "Receipt Scanner",
         desc: "Snap a photo of any receipt. We categorize it, flag tax deductions, and track your spending automatically.",
-        color: "bg-green-50 text-green-600",
+        color: "bg-green-50 text-[#00CF31]",
       },
       {
         icon: (
@@ -163,13 +163,13 @@ export default function OnboardingPage() {
         <div className="max-w-2xl w-full">
           {/* Hero */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-2xl mb-5 shadow-lg">
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-[#00CF31] rounded-2xl mb-5 shadow-lg">
               <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Your business, simplified</h1>
-            <p className="text-slate-600 text-lg max-w-md mx-auto">
+            <h1 className="text-3xl font-bold text-white mb-2">Your business, simplified</h1>
+            <p className="text-white/60 text-lg max-w-md mx-auto">
               Answer a few quick questions and we&apos;ll set up everything you need — no jargon, no guesswork.
             </p>
           </div>
@@ -177,13 +177,13 @@ export default function OnboardingPage() {
           {/* Feature cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
             {features.map((f) => (
-              <div key={f.title} className="bg-white/80 backdrop-blur rounded-xl border border-slate-200/60 p-4 flex gap-3">
+              <div key={f.title} className="bg-white/80 backdrop-blur rounded-xl border border-white/10/60 p-4 flex gap-3">
                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${f.color}`}>
                   {f.icon}
                 </div>
                 <div>
-                  <p className="font-medium text-slate-900 text-sm">{f.title}</p>
-                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{f.desc}</p>
+                  <p className="font-medium text-white text-sm">{f.title}</p>
+                  <p className="text-xs text-white/50 mt-0.5 leading-relaxed">{f.desc}</p>
                 </div>
               </div>
             ))}
@@ -194,7 +194,7 @@ export default function OnboardingPage() {
             <Button onClick={() => setStage("chat")} className="px-8 py-3 text-base">
               Let&apos;s get started
             </Button>
-            <p className="text-slate-400 text-sm mt-3">Takes about 3 minutes · Just a conversation, no forms</p>
+            <p className="text-white/40 text-sm mt-3">Takes about 3 minutes · Just a conversation, no forms</p>
           </div>
         </div>
       </div>

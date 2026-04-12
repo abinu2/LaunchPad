@@ -1,22 +1,33 @@
 /**
- * Groq client — server-side only.
- * Ultra-fast inference via llama-3.3-70b-versatile (text) and llama-3.2 vision models.
+ * AI client — server-side only.
+ * Uses OpenRouter as the primary inference provider (fetch-based, no SDK required).
+ * Falls back to Groq SDK if only GROQ_API_KEY is set.
+ *
+ * Primary model : Gemini 2.0 Flash via OpenRouter
+ * Vision model  : Gemini 2.0 Flash (multimodal)
+ * Fallback      : llama-3.3-70b-versatile on Groq direct
+ *
+ * All exports keep the same names so no other files need to change.
  * Import only in API routes (src/app/api/**).
  */
-import Groq from "groq-sdk";
+
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+// Model tiers — configurable via env, sensible defaults
+const PRIMARY_MODEL = process.env.AI_MODEL ?? "google/gemini-2.0-flash-001";
+const VISION_MODEL  = process.env.AI_VISION_MODEL ?? "google/gemini-2.0-flash-001";
+
+// Legacy exports kept for any route that imports them directly
+export const FAST_MODEL_ID     = PRIMARY_MODEL;
+export const ACCURATE_MODEL_ID = PRIMARY_MODEL;
+export const GROQ_MODEL        = PRIMARY_MODEL;
+export const GROQ_VISION_MODEL = VISION_MODEL;
 
 /**
- * Core identity and behavioral guidelines for all Groq AI calls in Launchpad.
- *
- * Audience: First-time and early-stage small business owners and entrepreneurs
- * who are not accountants, lawyers, or financial experts. They are often
- * overwhelmed, time-poor, and unfamiliar with business jargon.
- *
- * These guidelines apply to every task — compliance, contracts, receipts,
- * taxes, quotes, funding, and business formation advice.
+ * Core identity and behavioral guidelines for all AI calls in Launchpad.
+ * Audience: first-time small business owners and new entrepreneurs.
  */
-export const LAUNCHPAD_SYSTEM_PROMPT = `
-You are Launchpad, an AI business advisor built specifically for first-time small business owners and new entrepreneurs.
+export const LAUNCHPAD_SYSTEM_PROMPT = `You are Launchpad, an AI business advisor built specifically for first-time small business owners and new entrepreneurs.
 
 AUDIENCE:
 - People starting or running their first business (sole props, LLCs, freelancers, service businesses)
@@ -98,169 +109,271 @@ OUTPUT FORMAT:
 - Dollar amounts as numbers, not strings
 - Dates as YYYY-MM-DD strings
 - Percentages as integers 0–100, not decimals
-`.trim();
+- IMPORTANT: Do NOT wrap your response in markdown code fences. Return ONLY the raw JSON object.`.trim();
 
-let groqClient: Groq | null = null;
+// ─── Internal helpers ──────────────────────────────────────────────────────
 
-export const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
-/** Vision model for OCR + analysis of images in one call */
-export const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL ?? "meta-llama/llama-4-scout-17b-16e-instruct";
-const GROQ_JSON_MAX_TOKENS = Number(process.env.GROQ_JSON_MAX_TOKENS ?? "4096");
-const GROQ_VISION_JSON_MAX_TOKENS = Number(process.env.GROQ_VISION_JSON_MAX_TOKENS ?? "3072");
-const GROQ_VISION_TEXT_MAX_TOKENS = Number(process.env.GROQ_VISION_TEXT_MAX_TOKENS ?? "4096");
-const GROQ_TEXT_MAX_TOKENS = Number(process.env.GROQ_TEXT_MAX_TOKENS ?? "2048");
-
-export function isGroqConfigured() {
-  return Boolean(process.env.GROQ_API_KEY);
+export function isGroqConfigured(): boolean {
+  return Boolean(process.env.OPENROUTER_API_KEY || process.env.GROQ_API_KEY);
 }
 
-function getGroqClient(): Groq {
-  if (!isGroqConfigured()) {
-    throw new Error("GROQ_API_KEY is not set");
-  }
-  if (!groqClient) {
-    groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
-  }
-  return groqClient;
+export function getGroqModel(): string {
+  return PRIMARY_MODEL;
 }
 
-function cleanJSON(text: string): string {
-  return text
+export function getGroqVisionModel(): string {
+  return VISION_MODEL;
+}
+
+/** Build headers for whichever provider is configured. */
+export function getAIHeaders(): Record<string, string> {
+  const apiKey = process.env.OPENROUTER_API_KEY || process.env.GROQ_API_KEY;
+  const isOpenRouter = Boolean(process.env.OPENROUTER_API_KEY);
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${apiKey}`,
+  };
+
+  if (isOpenRouter) {
+    headers["HTTP-Referer"] = process.env.AUTH0_BASE_URL || "https://launchpad.app";
+    headers["X-Title"] = "LaunchPad";
+  }
+
+  return headers;
+}
+
+/** Return the correct completions endpoint. */
+export function getAIApiUrl(): string {
+  return process.env.OPENROUTER_API_KEY
+    ? OPENROUTER_URL
+    : "https://api.groq.com/openai/v1/chat/completions";
+}
+
+/** Strip markdown fences and model thinking tags from AI output. */
+export function cleanJSON(text: string): string {
+  let cleaned = text
     .replace(/^```(?:json)?\n?/m, "")
     .replace(/\n?```$/m, "")
     .trim();
+
+  // Strip Qwen/Gemini thinking blocks
+  cleaned = cleaned
+    .replace(/<redacted_thinking>[\s\S]*?<\/redacted_thinking>/g, "")
+    .replace(/<thinking>[\s\S]*?<\/thinking>/g, "")
+    .trim();
+
+  // If still not JSON, try extracting the first JSON object/array
+  if (!cleaned.startsWith("{") && !cleaned.startsWith("[")) {
+    const match = cleaned.match(/[{[][\s\S]*[}\]]/);
+    if (match) cleaned = match[0];
+  }
+
+  return cleaned;
 }
+
+// ─── Public API ───────────────────────────────────────────────────────────
 
 /**
  * Generate a JSON response from a text-only prompt.
- * Uses llama-3.3-70b-versatile with json_object mode.
- * Keep max_tokens conservative to reduce latency on Vercel hobby plan.
  */
-export async function groqJSON<T>(prompt: string): Promise<T> {
-  const client = getGroqClient();
-  const completion = await client.chat.completions.create({
-    model: GROQ_MODEL,
-    messages: [
-      {
-        role: "system",
-        content: LAUNCHPAD_SYSTEM_PROMPT + "\n\nYou are a precise JSON API. Always respond with valid JSON only. No markdown, no explanation, no text outside the JSON object.",
-      },
-      { role: "user", content: prompt },
-    ],
-    temperature: 0.1,
-    max_tokens: GROQ_JSON_MAX_TOKENS,
-    response_format: { type: "json_object" },
+export async function groqJSON<T>(prompt: string, options: {
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+} = {}): Promise<T> {
+  const apiKey = process.env.OPENROUTER_API_KEY || process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY (or GROQ_API_KEY) is not configured");
+
+  const model   = options.model ?? PRIMARY_MODEL;
+  const headers = getAIHeaders();
+  const url     = getAIApiUrl();
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model,
+      temperature: options.temperature ?? 0.1,
+      max_tokens: options.maxTokens ?? 4096,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            LAUNCHPAD_SYSTEM_PROMPT +
+            "\n\nYou are a precise JSON API. Always respond with valid JSON only. No markdown, no explanation, no text outside the JSON object.",
+        },
+        { role: "user", content: prompt },
+      ],
+    }),
   });
 
-  const text = completion.choices[0]?.message?.content ?? "";
-  const cleaned = cleanJSON(text);
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`AI error (${model}):`, response.status, text);
+    throw new Error(`AI API error ${response.status}`);
+  }
+
+  const data    = await response.json() as { choices?: { message?: { content?: string } }[] };
+  const content = data.choices?.[0]?.message?.content ?? "";
+  const cleaned = cleanJSON(content);
 
   try {
     return JSON.parse(cleaned) as T;
   } catch {
-    throw new Error(`Groq returned invalid JSON: ${cleaned.slice(0, 300)}`);
+    throw new Error(`AI returned invalid JSON: ${cleaned.slice(0, 300)}`);
   }
 }
 
 /**
  * Generate a JSON response from a prompt + an image.
- * Uses a Groq vision model to do OCR and structured analysis in a single API call.
- * The prompt must ask for JSON output explicitly.
+ * Uses Gemini 2.0 Flash for native multimodal handling.
  */
 export async function groqVisionJSON<T>(
   prompt: string,
   imageBase64: string,
-  mimeType: string
+  mimeType: string,
+  options: { model?: string; temperature?: number; maxTokens?: number } = {}
 ): Promise<T> {
-  const client = getGroqClient();
+  const apiKey = process.env.OPENROUTER_API_KEY || process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY (or GROQ_API_KEY) is not configured");
 
-  const completion = await client.chat.completions.create({
-    model: GROQ_VISION_MODEL,
-    stream: false,
-    messages: [
-      {
-        role: "system",
-        content: LAUNCHPAD_SYSTEM_PROMPT + "\n\nYou are a precise JSON API. Always respond with valid JSON only. No markdown, no explanation, no text outside the JSON object.",
-      },
-      {
-        role: "user",
-        content: [
-          {
-            type: "image_url",
-            image_url: { url: `data:${mimeType};base64,${imageBase64}` },
-          },
-          {
-            type: "text",
-            text:
-              "IMPORTANT: Respond with a valid JSON object only. No markdown fences, no explanation.\n\n" +
-              prompt,
-          },
-        ],
-      },
-    ],
-    temperature: 0.1,
-    max_tokens: GROQ_VISION_JSON_MAX_TOKENS,
+  const model   = options.model ?? VISION_MODEL;
+  const headers = getAIHeaders();
+  const url     = getAIApiUrl();
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model,
+      temperature: options.temperature ?? 0.1,
+      max_tokens: options.maxTokens ?? 3072,
+      messages: [
+        {
+          role: "system",
+          content:
+            LAUNCHPAD_SYSTEM_PROMPT +
+            "\n\nYou are a precise JSON API. Always respond with valid JSON only. No markdown, no explanation, no text outside the JSON object.",
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: { url: `data:${mimeType};base64,${imageBase64}` },
+            },
+            {
+              type: "text",
+              text: "IMPORTANT: Respond with a valid JSON object only. No markdown fences, no explanation.\n\n" + prompt,
+            },
+          ],
+        },
+      ],
+    }),
   });
 
-  const text = completion.choices[0]?.message?.content ?? "";
-  const cleaned = cleanJSON(text);
+  if (!response.ok) {
+    const text = await response.text();
+    console.error("Vision API error:", response.status, text);
+    throw new Error(`Vision API error ${response.status}`);
+  }
+
+  const data    = await response.json() as { choices?: { message?: { content?: string } }[] };
+  const content = data.choices?.[0]?.message?.content ?? "";
+  const cleaned = cleanJSON(content);
 
   try {
     return JSON.parse(cleaned) as T;
   } catch {
-    // Try to extract JSON substring if model added surrounding text
     const match = cleaned.match(/\{[\s\S]*\}/);
     if (match) {
-      try {
-        return JSON.parse(match[0]) as T;
-      } catch {
-        // fall through
-      }
+      try { return JSON.parse(match[0]) as T; } catch { /* fall through */ }
     }
-    throw new Error(`Groq vision returned invalid JSON: ${cleaned.slice(0, 300)}`);
+    throw new Error(`Vision returned invalid JSON: ${cleaned.slice(0, 300)}`);
   }
 }
 
 /**
- * Generate plain text from Groq (used for OCR from images when you only need raw text).
+ * Generate plain text from a vision model (used for raw OCR output).
  */
-export async function groqVisionText(prompt: string, imageBase64: string, mimeType: string): Promise<string> {
-  const client = getGroqClient();
-  const completion = await client.chat.completions.create({
-    model: GROQ_VISION_MODEL,
-    stream: false,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image_url",
-            image_url: { url: `data:${mimeType};base64,${imageBase64}` },
-          },
-          { type: "text", text: prompt },
-        ],
-      },
-    ],
-    temperature: 0.1,
-    max_tokens: GROQ_VISION_TEXT_MAX_TOKENS,
+export async function groqVisionText(
+  prompt: string,
+  imageBase64: string,
+  mimeType: string,
+  options: { model?: string; temperature?: number; maxTokens?: number } = {}
+): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY || process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY (or GROQ_API_KEY) is not configured");
+
+  const model   = options.model ?? VISION_MODEL;
+  const headers = getAIHeaders();
+  const url     = getAIApiUrl();
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model,
+      temperature: options.temperature ?? 0.1,
+      max_tokens: options.maxTokens ?? 4096,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
+            { type: "text", text: prompt },
+          ],
+        },
+      ],
+    }),
   });
 
-  return completion.choices[0]?.message?.content ?? "";
+  if (!response.ok) {
+    const text = await response.text();
+    console.error("Vision Text API error:", response.status, text);
+    throw new Error(`Vision Text API error ${response.status}`);
+  }
+
+  const data = await response.json() as { choices?: { message?: { content?: string } }[] };
+  return data.choices?.[0]?.message?.content ?? "";
 }
 
 /**
- * Generate a plain text response from Groq.
+ * Generate a plain text response.
  */
-export async function groqText(prompt: string): Promise<string> {
-  const client = getGroqClient();
-  const completion = await client.chat.completions.create({
-    model: GROQ_MODEL,
-    messages: [
-      { role: "system", content: LAUNCHPAD_SYSTEM_PROMPT },
-      { role: "user", content: prompt },
-    ],
-    temperature: 0.3,
-    max_tokens: GROQ_TEXT_MAX_TOKENS,
+export async function groqText(
+  prompt: string,
+  options: { model?: string; temperature?: number; maxTokens?: number } = {}
+): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY || process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY (or GROQ_API_KEY) is not configured");
+
+  const model   = options.model ?? PRIMARY_MODEL;
+  const headers = getAIHeaders();
+  const url     = getAIApiUrl();
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model,
+      temperature: options.temperature ?? 0.3,
+      max_tokens: options.maxTokens ?? 2048,
+      messages: [
+        { role: "system", content: LAUNCHPAD_SYSTEM_PROMPT },
+        { role: "user", content: prompt },
+      ],
+    }),
   });
-  return completion.choices[0]?.message?.content ?? "";
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error("Text API error:", response.status, text);
+    throw new Error(`Text API error ${response.status}`);
+  }
+
+  const data = await response.json() as { choices?: { message?: { content?: string } }[] };
+  return data.choices?.[0]?.message?.content ?? "";
 }

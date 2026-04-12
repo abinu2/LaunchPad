@@ -65,7 +65,7 @@ export function AIInsightBanner({ data }: Props) {
   if (!insight) return null;
 
   return (
-    <div className="bg-blue-600 text-white rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+    <div className="bg-[#00CF31]/15 text-[#00CF31] rounded-xl px-4 py-3 flex items-center justify-between gap-3">
       <p className="text-sm">{insight.message}</p>
       {insight.link && (
         <a

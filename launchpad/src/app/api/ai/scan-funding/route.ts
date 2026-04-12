@@ -133,9 +133,9 @@ Return a JSON array of funding opportunities with this structure:
 ]`;
 
   try {
-    const isGroqConfigured = !!process.env.GROQ_API_KEY;
-    if (!isGroqConfigured) {
-      console.warn("Groq API not configured - returning empty opportunities");
+    const isAIConfigured = !!(process.env.OPENROUTER_API_KEY || process.env.GROQ_API_KEY);
+    if (!isAIConfigured) {
+      console.warn("AI API not configured - returning empty opportunities (set OPENROUTER_API_KEY)");
       return [];
     }
 
@@ -219,8 +219,8 @@ export async function POST(req: NextRequest) {
           controller.close();
         } catch (err) {
           console.error("scan-funding error:", err);
-          controller.enqueue(encoder.encode(JSON.stringify({ 
-            error: "Scan failed - ensure Groq API is configured",
+          controller.enqueue(encoder.encode(JSON.stringify({
+            error: "Scan failed - ensure OPENROUTER_API_KEY is configured",
             details: err instanceof Error ? err.message : "Unknown error"
           })));
           controller.close();
@@ -236,8 +236,8 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error("scan-funding error:", err);
-    return NextResponse.json({ 
-      error: "Scan failed - ensure Groq API is configured",
+    return NextResponse.json({
+      error: "Scan failed - ensure OPENROUTER_API_KEY is configured",
       details: err instanceof Error ? err.message : "Unknown error"
     }, { status: 500 });
   }

@@ -40,7 +40,7 @@ export default function PublicQuotePage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <p className="text-slate-600 mb-4">{error || "Quote not found"}</p>
+          <p className="text-white/60 mb-4">{error || "Quote not found"}</p>
         </div>
       </div>
     );
@@ -49,21 +49,21 @@ export default function PublicQuotePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-lg">
+        <div className="glass-card p-8 shadow-lg">
           <div className="mb-8 text-center">
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Quote</h1>
-            <p className="text-slate-500">For {quote.clientName}</p>
+            <h1 className="text-3xl font-bold text-white mb-2">Quote</h1>
+            <p className="text-white/50">For {quote.clientName}</p>
           </div>
 
           <div className="space-y-6">
             {/* Services */}
-            <div className="border-b border-slate-200 pb-6">
-              <h2 className="font-semibold text-slate-900 mb-3">Services</h2>
+            <div className="border-b border-white/10 pb-6">
+              <h2 className="font-semibold text-white mb-3">Services</h2>
               <div className="space-y-3">
                 {Array.isArray(quote.services) && (quote.services as any[]).map((service: any, i: number) => (
                   <div key={i} className="flex justify-between">
-                    <span className="text-slate-600">{String(service.description ?? "Service")}</span>
-                    <span className="font-medium text-slate-900">${Number(service.amount ?? 0).toFixed(2)}</span>
+                    <span className="text-white/60">{String(service.description ?? "Service")}</span>
+                    <span className="font-medium text-white">${Number(service.amount ?? 0).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
@@ -72,18 +72,18 @@ export default function PublicQuotePage() {
             {/* Totals */}
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Subtotal</span>
-                <span className="font-medium text-slate-900">${quote.subtotal.toFixed(2)}</span>
+                <span className="text-white/50">Subtotal</span>
+                <span className="font-medium text-white">${quote.subtotal.toFixed(2)}</span>
               </div>
               {quote.taxRate > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Tax ({(quote.taxRate * 100).toFixed(1)}%)</span>
-                  <span className="font-medium text-slate-900">${quote.taxAmount.toFixed(2)}</span>
+                  <span className="text-white/50">Tax ({(quote.taxRate * 100).toFixed(1)}%)</span>
+                  <span className="font-medium text-white">${quote.taxAmount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-xl font-bold border-t border-slate-200 pt-3">
+              <div className="flex justify-between text-xl font-bold border-t border-white/10 pt-3">
                 <span>Total</span>
-                <span className="text-green-700">${quote.total.toFixed(2)}</span>
+                <span className="text-green-400">${quote.total.toFixed(2)}</span>
               </div>
             </div>
 

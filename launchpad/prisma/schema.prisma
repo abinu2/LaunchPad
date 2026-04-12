@@ -10,11 +10,11 @@ datasource db {
 
 model Business {
   id        String   @id @default(cuid())
-  auth0Id   String   @unique  // Auth0 user sub (e.g. "auth0|abc123")
+  auth0Id   String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // ─── Onboarding & Business Info ────────────────────────────────────────────
+  // ─── Onboarding & Business Info ─────────────────────────────────────────────
   businessName           String
   businessType           String   @default("")
   businessDescription    String   @default("")
@@ -26,49 +26,52 @@ model Business {
   businessAddress        Json     @default("{}")
   operatingJurisdictions Json     @default("[]")
 
-  // ─── Owner/Personal Info ──────────────────────────────────────────────────
-  ownerName              String   @default("")
-  ownerEmail             String   @default("")
-  ownerPhone             String   @default("")
-  hasOtherJob            Boolean  @default(false)
-  estimatedW2Income      Float?
-  isFirstTimeBusiness    Boolean  @default(true)
+  // ─── Owner / Personal Info ───────────────────────────────────────────────────
+  ownerName           String  @default("")
+  ownerEmail          String  @default("")
+  ownerPhone          String  @default("")
+  hasOtherJob         Boolean @default(false)
+  estimatedW2Income   Float?
+  isFirstTimeBusiness Boolean @default(true)
 
-  // ─── Business Operations ──────────────────────────────────────────────────
-  serviceTypes           Json     @default("[]")
-  targetMarket           String   @default("residential")
-  usesPersonalVehicle    Boolean  @default(false)
-  hasEmployees           Boolean  @default(false)
-  employeeCount          Int      @default(0)
-  hasContractors         Boolean  @default(false)
-  contractorCount        Int      @default(0)
+  // ─── Business Operations ─────────────────────────────────────────────────────
+  serviceTypes        Json    @default("[]")
+  targetMarket        String  @default("residential")
+  usesPersonalVehicle Boolean @default(false)
+  hasEmployees        Boolean @default(false)
+  employeeCount       Int     @default(0)
+  hasContractors      Boolean @default(false)
+  contractorCount     Int     @default(0)
 
-  // ─── Financial Snapshot (denormalized for fast dashboard reads) ───────────
-  monthlyRevenueAvg      Float    @default(0)
-  monthlyExpenseAvg      Float    @default(0)
-  profitMargin           Float    @default(0)
-  totalRevenueYTD        Float    @default(0)
-  totalExpensesYTD       Float    @default(0)
-  currentCashBalance     Float?
-  financialsUpdatedAt    DateTime?
+  // ─── Financial Snapshot ──────────────────────────────────────────────────────
+  monthlyRevenueAvg   Float     @default(0)
+  monthlyExpenseAvg   Float     @default(0)
+  profitMargin        Float     @default(0)
+  totalRevenueYTD     Float     @default(0)
+  totalExpensesYTD    Float     @default(0)
+  currentCashBalance  Float?
+  financialsUpdatedAt DateTime?
 
-  // ─── Onboarding Progress ──────────────────────────────────────────────────
-  onboardingStage        String   @default("idea")
-  completedSteps         Json     @default("[]")
+  // ─── Onboarding Progress ─────────────────────────────────────────────────────
+  onboardingStage String @default("idea")
+  completedSteps  Json   @default("[]")
 
-  // ─── Relations ─────────────────────────────────────────────────────────────
-  contracts              Contract[]
-  receipts               Receipt[]
-  quotes                 Quote[]
-  complianceItems        ComplianceItem[]
-  fundingOpportunities   FundingOpportunity[]
-  bankTransactions       BankTransaction[]
-  plaidConnections       PlaidConnection[]
-  growthActions          GrowthAction[]
-  uploadedFiles          UploadedFile[]
-  taxSummaries           TaxSummary[]
-  profitAndLoss          ProfitAndLoss[]
-  expenseCategories      ExpenseCategory[]
+  // ─── Relations ───────────────────────────────────────────────────────────────
+  contracts           Contract[]
+  receipts            Receipt[]
+  quotes              Quote[]
+  complianceItems     ComplianceItem[]
+  fundingOpportunities FundingOpportunity[]
+  bankTransactions    BankTransaction[]
+  plaidConnections    PlaidConnection[]
+  growthActions       GrowthAction[]
+  uploadedFiles       UploadedFile[]
+  taxSummaries        TaxSummary[]
+  profitAndLoss       ProfitAndLoss[]
+  expenseCategories   ExpenseCategory[]
+  policyAnalyses      PolicyAnalysis[]
+  gapAnalyses         GapAnalysis[]
+  coverageActionPlans CoverageActionPlan[]
 }
 
 // ─── Contracts ────────────────────────────────────────────────────────────────
@@ -80,23 +83,27 @@ model Contract {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  // Optional link to the source file in UploadedFile registry
+  uploadedFileId String?
+  uploadedFile   UploadedFile? @relation(fields: [uploadedFileId], references: [id], onDelete: SetNull)
+
   fileName                String
   fileUrl                 String
-  fileType                String   @default("pdf")
-  contractType            String   @default("other")
+  fileType                String  @default("pdf")
+  contractType            String  @default("other")
   counterpartyName        String
   effectiveDate           String?
   expirationDate          String?
-  autoRenews              Boolean  @default(false)
+  autoRenews              Boolean @default(false)
   autoRenewalDate         String?
   autoRenewalNoticePeriod Int?
   terminationNoticePeriod Int?
   totalValue              Float?
   monthlyValue            Float?
-  healthScore             Int      @default(100)
-  status                  String   @default("active")
-  analysis                Json     @default("{}")
-  obligations             Json     @default("[]")
+  healthScore             Int     @default(100)
+  status                  String  @default("active")
+  analysis                Json    @default("{}")
+  obligations             Json    @default("[]")
 }
 
 // ─── Receipts ─────────────────────────────────────────────────────────────────
@@ -108,19 +115,23 @@ model Receipt {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  // Optional link to source file
+  uploadedFileId String?
+  uploadedFile   UploadedFile? @relation(fields: [uploadedFileId], references: [id], onDelete: SetNull)
+
   imageUrl           String
   vendor             String
   amount             Float
   date               String
-  lineItems          Json     @default("[]")
-  category           String   @default("other")
-  taxClassification  String   @default("expense")
-  businessPercentage Float    @default(100)
-  deductibleAmount   Float    @default(0)
-  taxNotes           String   @default("")
-  isReconciled       Boolean  @default(false)
+  lineItems          Json    @default("[]")
+  category           String  @default("other")
+  taxClassification  String  @default("expense")
+  businessPercentage Float   @default(100)
+  deductibleAmount   Float   @default(0)
+  taxNotes           String  @default("")
+  isReconciled       Boolean @default(false)
   associatedMileage  Float?
-  needsMoreInfo      Boolean  @default(false)
+  needsMoreInfo      Boolean @default(false)
   pendingQuestion    String?
 }
 
@@ -134,20 +145,20 @@ model Quote {
   updatedAt  DateTime @updatedAt
 
   clientName            String
-  clientEmail           String   @default("")
-  clientPhone           String   @default("")
-  services              Json     @default("[]")
-  subtotal              Float    @default(0)
-  taxRate               Float    @default(0)
-  taxAmount             Float    @default(0)
-  total                 Float    @default(0)
+  clientEmail           String    @default("")
+  clientPhone           String    @default("")
+  services              Json      @default("[]")
+  subtotal              Float     @default(0)
+  taxRate               Float     @default(0)
+  taxAmount             Float     @default(0)
+  total                 Float     @default(0)
   pricingAnalysis       Json?
-  status                String   @default("draft")
+  status                String    @default("draft")
   sentAt                DateTime?
   viewedAt              DateTime?
   acceptedAt            DateTime?
   paidAt                DateTime?
-  contractGenerated     Boolean  @default(false)
+  contractGenerated     Boolean   @default(false)
   contractId            String?
   contractSignedAt      DateTime?
   stripePaymentIntentId String?
@@ -156,7 +167,7 @@ model Quote {
   scheduledDate         String?
   scheduledTime         String?
   scheduledAddress      String?
-  followUpsSent         Int      @default(0)
+  followUpsSent         Int       @default(0)
   lastFollowUpAt        DateTime?
   nextFollowUpAt        DateTime?
 }
@@ -207,20 +218,20 @@ model FundingOpportunity {
   name                 String
   provider             String
   type                 String
-  amountMin            Float    @default(0)
-  amountMax            Float    @default(0)
+  amountMin            Float   @default(0)
+  amountMax            Float   @default(0)
   interestRate         String?
   repaymentTerms       String?
-  eligibilityMatch     Int      @default(0)
-  eligibilityCriteria  Json     @default("[]")
+  eligibilityMatch     Int     @default(0)
+  eligibilityCriteria  Json    @default("[]")
   applicationUrl       String
   applicationDeadline  String?
-  status               String   @default("discovered")
-  applicationProgress  Int      @default(0)
-  prefilledFields      Json     @default("{}")
-  fitScore             Int      @default(0)
-  recommendation       String   @default("")
-  estimatedTimeToApply String   @default("")
+  status               String  @default("discovered")
+  applicationProgress  Int     @default(0)
+  prefilledFields      Json    @default("{}")
+  fitScore             Int     @default(0)
+  recommendation       String  @default("")
+  estimatedTimeToApply String  @default("")
 }
 
 // ─── Bank Transactions ────────────────────────────────────────────────────────
@@ -274,8 +285,7 @@ model GrowthAction {
   dismissed  Boolean  @default(false)
 }
 
-// ─── Tax Summaries ─────────────────────────────────────────────────────────────
-// Quarterly and annual tax calculations and estimates
+// ─── Tax Summaries ────────────────────────────────────────────────────────────
 
 model TaxSummary {
   id         String   @id @default(cuid())
@@ -284,32 +294,31 @@ model TaxSummary {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  taxYear                Int
-  quarter                Int      // 1-4 for quarterly, 0 for annual
-  grossRevenue           Float    @default(0)
-  returnsAndAllowances   Float    @default(0)
-  netRevenue             Float    @default(0)
-  totalCOGS              Float    @default(0)
-  grossProfit            Float    @default(0)
-  totalExpenses          Float    @default(0)
-  mileageDeduction       Float    @default(0)
-  homeOfficeDeduction    Float    @default(0)
-  healthInsuranceDeduction Float  @default(0)
-  section199ADeduction   Float    @default(0)
-  totalDeductions        Float    @default(0)
-  netTaxableIncome       Float    @default(0)
-  estimatedFederalTax    Float    @default(0)
-  estimatedStateTax      Float    @default(0)
-  estimatedSelfEmploymentTax Float @default(0)
-  totalEstimatedTax      Float    @default(0)
-  quarterlyPayments      Json     @default("{}")
-  missedDeductions       Json     @default("[]")
-  taxSavingOpportunities Json     @default("[]")
-  expenseBreakdown       Json     @default("{}")
+  taxYear                      Int
+  quarter                      Int   // 1-4 quarterly, 0 = annual
+  grossRevenue                 Float @default(0)
+  returnsAndAllowances         Float @default(0)
+  netRevenue                   Float @default(0)
+  totalCOGS                    Float @default(0)
+  grossProfit                  Float @default(0)
+  totalExpenses                Float @default(0)
+  mileageDeduction             Float @default(0)
+  homeOfficeDeduction          Float @default(0)
+  healthInsuranceDeduction     Float @default(0)
+  section199ADeduction         Float @default(0)
+  totalDeductions              Float @default(0)
+  netTaxableIncome             Float @default(0)
+  estimatedFederalTax          Float @default(0)
+  estimatedStateTax            Float @default(0)
+  estimatedSelfEmploymentTax   Float @default(0)
+  totalEstimatedTax            Float @default(0)
+  quarterlyPayments            Json  @default("{}")
+  missedDeductions             Json  @default("[]")
+  taxSavingOpportunities       Json  @default("[]")
+  expenseBreakdown             Json  @default("{}")
 }
 
 // ─── Profit & Loss ────────────────────────────────────────────────────────────
-// Monthly, quarterly, and annual P&L statements
 
 model ProfitAndLoss {
   id         String   @id @default(cuid())
@@ -318,21 +327,20 @@ model ProfitAndLoss {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  period                String   // "monthly" | "quarterly" | "annual"
-  startDate             String
-  endDate               String
-  revenue               Float    @default(0)
-  cogs                  Float    @default(0)
-  grossProfit           Float    @default(0)
-  totalExpenses         Float    @default(0)
-  netProfit             Float    @default(0)
-  profitMargin          Float    @default(0)
-  expenseBreakdown      Json     @default("{}")
-  comparedToPreviousPeriod Json  @default("{}")
+  period                   String // "monthly" | "quarterly" | "annual"
+  startDate                String
+  endDate                  String
+  revenue                  Float  @default(0)
+  cogs                     Float  @default(0)
+  grossProfit              Float  @default(0)
+  totalExpenses            Float  @default(0)
+  netProfit                Float  @default(0)
+  profitMargin             Float  @default(0)
+  expenseBreakdown         Json   @default("{}")
+  comparedToPreviousPeriod Json   @default("{}")
 }
 
 // ─── Expense Categories ───────────────────────────────────────────────────────
-// Track custom expense categories and their totals
 
 model ExpenseCategory {
   id         String   @id @default(cuid())
@@ -341,18 +349,16 @@ model ExpenseCategory {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  name               String
-  description        String   @default("")
-  isCustom           Boolean  @default(false)
-  isTaxDeductible    Boolean  @default(true)
-  monthlyTotal       Float    @default(0)
-  yearlyTotal        Float    @default(0)
-  lastUpdated        DateTime @default(now())
+  name             String
+  description      String  @default("")
+  isCustom         Boolean @default(false)
+  isTaxDeductible  Boolean @default(true)
+  monthlyTotal     Float   @default(0)
+  yearlyTotal      Float   @default(0)
+  lastUpdated      DateTime @default(now())
 }
 
 // ─── Uploaded Files ───────────────────────────────────────────────────────────
-// Central registry of every file uploaded by a business — contracts, receipts,
-// tax docs, etc. Provides a full audit trail and enables the "Files" view.
 
 model UploadedFile {
   id         String   @id @default(cuid())
@@ -360,19 +366,81 @@ model UploadedFile {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
 
-  // Storage
-  blobUrl    String   // Vercel Blob URL
-  blobPath   String   // Blob pathname (for deletion)
-  fileName   String   // Original filename
-  fileSize   Int      // Bytes
-  mimeType   String   // e.g. "application/pdf"
-  folder     String   // "contracts" | "receipts" | "taxes" | "other"
+  blobUrl    String
+  blobPath   String
+  fileName   String
+  fileSize   Int
+  mimeType   String
+  folder     String // "contracts" | "receipts" | "taxes" | "insurance" | "other"
 
-  // Linked record (optional — set after AI analysis creates the record)
-  linkedType String?  // "contract" | "receipt" | "quote"
-  linkedId   String?  // ID of the linked record
+  linkedType String? // "contract" | "receipt" | "quote" | "policy_analysis"
+  linkedId   String?
 
-  // Analysis state
-  analysisStatus String @default("pending") // "pending" | "processing" | "complete" | "failed"
+  analysisStatus String  @default("pending")
   analysisError  String?
+
+  // Back-references from analysis models
+  contracts      Contract[]
+  receipts       Receipt[]
+  policyAnalyses PolicyAnalysis[]
+}
+
+// ─── Insurance: Policy Analysis ───────────────────────────────────────────────
+// Stores the raw extracted text and AI-structured summary of an uploaded
+// insurance policy document.
+
+model PolicyAnalysis {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  // Optional link to the source file
+  uploadedFileId String?
+  uploadedFile   UploadedFile? @relation(fields: [uploadedFileId], references: [id], onDelete: SetNull)
+
+  rawText String? @db.Text  // Full extracted policy text
+  summary Json    @default("{}") // Structured AI summary (coverage limits, deductibles, etc.)
+
+  gapAnalyses GapAnalysis[]
+}
+
+// ─── Insurance: Gap Analysis ──────────────────────────────────────────────────
+// Coverage gap analysis derived from a PolicyAnalysis and the business risk profile.
+
+model GapAnalysis {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  policyAnalysisId String?
+  policyAnalysis   PolicyAnalysis? @relation(fields: [policyAnalysisId], references: [id], onDelete: SetNull)
+
+  results         Json @default("{}") // Array of {coverage, status, limit, recommendation}
+  protectionScore Int? // 0-100 overall protection score
+
+  coverageActionPlans CoverageActionPlan[]
+}
+
+// ─── Insurance: Coverage Action Plan ─────────────────────────────────────────
+// AI-generated action plan to close coverage gaps, tied to a GapAnalysis.
+
+model CoverageActionPlan {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  gapAnalysisId String?
+  gapAnalysis   GapAnalysis? @relation(fields: [gapAnalysisId], references: [id], onDelete: SetNull)
+
+  carrierScope         String @default("state_farm_v1")
+  currentScore         Int?
+  projectedScore       Int?
+  planSummary          String @default("") @db.Text
+  planItems            Json   @default("[]") // Array of {priority, action, product, estimatedCost, savings}
+  sourceCatalogVersion String @default("state_farm_v1")
+  inputHash            String @default("") // Hash of inputs for cache invalidation
 }

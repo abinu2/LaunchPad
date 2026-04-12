@@ -31,16 +31,14 @@ export default function SetupPage() {
     },
     {
       number: "3",
-      title: "Groq + Gemini",
+      title: "AI (OpenRouter)",
       time: "2 min",
       color: "bg-green-500",
       items: [
-        { label: "Go to", link: "https://console.groq.com", linkText: "console.groq.com" },
-        { label: "Create a Groq API key and set GROQ_API_KEY for primary text analysis" },
-        { label: "Go to", link: "https://aistudio.google.com/apikey", linkText: "aistudio.google.com/apikey" },
-        { label: "Create a Gemini API key in Google AI Studio for OCR fallback on image-heavy documents" },
-        { label: "Set GEMINI_API_KEY in launchpad/.env.local" },
-        { label: "Optional: override GROQ_MODEL, GEMINI_MODEL, or GEMINI_LONG_CONTEXT_MODEL" },
+        { label: "Go to", link: "https://openrouter.ai/keys", linkText: "openrouter.ai/keys" },
+        { label: "Create an API key and set OPENROUTER_API_KEY — gives access to Gemini 2.0 Flash and 200+ models" },
+        { label: "Optional fallback: set GROQ_API_KEY from", link: "https://console.groq.com", linkText: "console.groq.com" },
+        { label: "Optional: override AI_MODEL or AI_VISION_MODEL for a different model tier" },
       ],
     },
     {
@@ -57,7 +55,7 @@ export default function SetupPage() {
       number: "5",
       title: "Vercel Blob",
       time: "2 min",
-      color: "bg-slate-700",
+      color: "bg-white/10",
       items: [
         { label: "Create a Vercel Blob store for uploads" },
         { label: "Set BLOB_READ_WRITE_TOKEN in local env and in Vercel" },
@@ -72,8 +70,8 @@ export default function SetupPage() {
     { key: "AUTH0_SECRET", source: "Generate a long random hex string" },
     { key: "AUTH0_BASE_URL", source: "Usually http://localhost:3000 in local dev" },
     { key: "DATABASE_URL", source: "PostgreSQL connection string for Prisma" },
-    { key: "GROQ_API_KEY", source: "Groq API key for primary contract and receipt analysis" },
-    { key: "GEMINI_API_KEY", source: "Google AI Studio API key" },
+    { key: "OPENROUTER_API_KEY", source: "OpenRouter API key — primary AI provider (Gemini 2.0 Flash)" },
+    { key: "GROQ_API_KEY", source: "Groq API key — fallback if OPENROUTER_API_KEY is not set" },
     { key: "PLAID_CLIENT_ID", source: "Plaid dashboard" },
     { key: "PLAID_SECRET", source: "Plaid dashboard" },
     { key: "STRIPE_SECRET_KEY", source: "Stripe dashboard (optional)" },
@@ -83,25 +81,25 @@ export default function SetupPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4">
+    <div className="min-h-screen bg-white/5 py-12 px-4">
       <div className="max-w-3xl mx-auto space-y-8">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-2xl mb-4">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-[#00CF31] rounded-2xl mb-4">
             <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900">Launchpad Setup</h1>
-          <p className="text-slate-500 mt-2">Fill in `launchpad/.env.local` for the Prisma + Auth0 stack.</p>
+          <h1 className="text-3xl font-bold text-white">Launchpad Setup</h1>
+          <p className="text-white/50 mt-2">Fill in `launchpad/.env.local` for the Prisma + Auth0 stack.</p>
         </div>
 
         <div className="bg-slate-900 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-2">Edit this file:</p>
+          <p className="text-xs text-white/40 mb-2">Edit this file:</p>
           <p className="text-green-400 font-mono text-sm">launchpad/.env.local</p>
         </div>
 
         {steps.map((step) => (
-          <div key={step.number} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div key={step.number} className="glass-card overflow-hidden">
             <div className={`${step.color} px-5 py-3 flex items-center justify-between`}>
               <div className="flex items-center gap-3">
                 <span className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center text-white font-bold text-sm">
@@ -113,12 +111,12 @@ export default function SetupPage() {
             </div>
             <ul className="divide-y divide-slate-100">
               {step.items.map((item, i) => (
-                <li key={i} className="flex items-start gap-3 px-5 py-3 text-sm text-slate-700">
-                  <span className="text-slate-300 flex-shrink-0 mt-0.5">-&gt;</span>
+                <li key={i} className="flex items-start gap-3 px-5 py-3 text-sm text-white/70">
+                  <span className="text-white/30 flex-shrink-0 mt-0.5">-&gt;</span>
                   <span>
                     {item.label}{" "}
                     {item.link && (
-                      <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
+                      <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-[#00CF31] hover:underline font-medium">
                         {item.linkText}
                       </a>
                     )}
@@ -129,26 +127,26 @@ export default function SetupPage() {
           </div>
         ))}
 
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-200">
-            <h2 className="font-semibold text-slate-900">Required env vars</h2>
+        <div className="glass-card overflow-hidden">
+          <div className="px-5 py-3 border-b border-white/10">
+            <h2 className="font-semibold text-white">Required env vars</h2>
           </div>
           <div className="divide-y divide-slate-100">
             {envVars.map((v) => (
               <div key={v.key} className="px-5 py-3">
-                <p className="font-mono text-xs text-blue-700 font-medium">{v.key}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{v.source}</p>
+                <p className="font-mono text-xs text-blue-400 font-medium">{v.key}</p>
+                <p className="text-xs text-white/50 mt-0.5">{v.source}</p>
               </div>
             ))}
           </div>
         </div>
 
         <div className="bg-slate-900 rounded-xl p-5">
-          <p className="text-slate-400 text-xs mb-3">Once `.env.local` is filled in, run:</p>
+          <p className="text-white/40 text-xs mb-3">Once `.env.local` is filled in, run:</p>
           <pre className="text-green-400 font-mono text-sm">{`pnpm prisma generate
 pnpm prisma db push
 pnpm dev`}</pre>
-          <p className="text-slate-500 text-xs mt-3">App will be at http://localhost:3000</p>
+          <p className="text-white/50 text-xs mt-3">App will be at http://localhost:3000</p>
         </div>
       </div>
     </div>

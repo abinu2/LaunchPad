@@ -40,12 +40,12 @@ export function RevenuePipeline({ quotes }: Props) {
       : 0;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
+    <div className="glass-card rounded-xl p-5">
       <div className="flex items-center justify-between mb-4">
-        <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Revenue Pipeline</p>
+        <p className="text-xs font-medium text-white/40 uppercase tracking-wide">Revenue Pipeline</p>
         <div className="flex items-center gap-3 text-xs">
-          <span className="text-slate-500">
-            Close rate: <span className="font-semibold text-slate-800">{conversionRate}%</span>
+          <span className="text-white/50">
+            Close rate: <span className="font-semibold text-white">{conversionRate}%</span>
           </span>
         </div>
       </div>
@@ -54,8 +54,8 @@ export function RevenuePipeline({ quotes }: Props) {
       <div className="space-y-2 mb-4">
         {stageData.map((s) => (
           <div key={s.key} className="flex items-center gap-2.5">
-            <span className="text-xs text-slate-500 w-14 flex-shrink-0">{s.label}</span>
-            <div className="flex-1 h-5 bg-slate-50 rounded-md overflow-hidden relative">
+            <span className="text-xs text-white/50 w-14 flex-shrink-0">{s.label}</span>
+            <div className="flex-1 h-5 bg-white/5 rounded-md overflow-hidden relative">
               <div
                 className="h-full rounded-md transition-all duration-700"
                 style={{
@@ -66,9 +66,9 @@ export function RevenuePipeline({ quotes }: Props) {
               />
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0 w-24 justify-end">
-              <span className="text-xs font-semibold text-slate-800">{s.count}</span>
+              <span className="text-xs font-semibold text-white">{s.count}</span>
               {s.value > 0 && (
-                <span className="text-xs text-slate-400">${s.value.toLocaleString()}</span>
+                <span className="text-xs text-white/40">${s.value.toLocaleString()}</span>
               )}
             </div>
           </div>
@@ -76,14 +76,14 @@ export function RevenuePipeline({ quotes }: Props) {
       </div>
 
       {/* Summary row */}
-      <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-3">
+      <div className="pt-3 border-t border-white/8 grid grid-cols-2 gap-3">
         <div>
-          <p className="text-xs text-slate-400">Total pipeline</p>
-          <p className="text-sm font-semibold text-slate-900">${totalPipelineValue.toLocaleString()}</p>
+          <p className="text-xs text-white/40">Total pipeline</p>
+          <p className="text-sm font-semibold text-white">${totalPipelineValue.toLocaleString()}</p>
         </div>
         <div>
-          <p className="text-xs text-slate-400">Collected</p>
-          <p className="text-sm font-semibold text-green-700">${paidValue.toLocaleString()}</p>
+          <p className="text-xs text-white/40">Collected</p>
+          <p className="text-sm font-semibold text-[#00CF31]">${paidValue.toLocaleString()}</p>
         </div>
       </div>
     </div>

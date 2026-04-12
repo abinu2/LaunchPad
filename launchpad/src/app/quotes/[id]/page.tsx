@@ -45,9 +45,9 @@ export default function QuoteDetailPage() {
 
   if (error || !quote) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white/5 flex items-center justify-center p-4">
         <div className="text-center">
-          <p className="text-slate-600 mb-4">{error || "Quote not found"}</p>
+          <p className="text-white/60 mb-4">{error || "Quote not found"}</p>
           <Button onClick={() => router.back()}>Go back</Button>
         </div>
       </div>
@@ -55,33 +55,33 @@ export default function QuoteDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4">
+    <div className="min-h-screen bg-white/5 p-4">
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-xl border border-slate-200 p-8">
+        <div className="glass-card p-8">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Quote for {quote.clientName}</h1>
-            <p className="text-slate-500">Quote ID: {quote.id}</p>
+            <h1 className="text-3xl font-bold text-white mb-2">Quote for {quote.clientName}</h1>
+            <p className="text-white/50">Quote ID: {quote.id}</p>
           </div>
 
           <div className="space-y-6">
             {/* Client info */}
-            <div className="border-b border-slate-200 pb-6">
-              <h2 className="font-semibold text-slate-900 mb-3">Client Information</h2>
+            <div className="border-b border-white/10 pb-6">
+              <h2 className="font-semibold text-white mb-3">Client Information</h2>
               <div className="space-y-2 text-sm">
-                <p><span className="text-slate-500">Name:</span> <span className="font-medium">{quote.clientName}</span></p>
-                {quote.clientEmail && <p><span className="text-slate-500">Email:</span> <span className="font-medium">{quote.clientEmail}</span></p>}
-                {quote.clientPhone && <p><span className="text-slate-500">Phone:</span> <span className="font-medium">{quote.clientPhone}</span></p>}
+                <p><span className="text-white/50">Name:</span> <span className="font-medium">{quote.clientName}</span></p>
+                {quote.clientEmail && <p><span className="text-white/50">Email:</span> <span className="font-medium">{quote.clientEmail}</span></p>}
+                {quote.clientPhone && <p><span className="text-white/50">Phone:</span> <span className="font-medium">{quote.clientPhone}</span></p>}
               </div>
             </div>
 
             {/* Services */}
-            <div className="border-b border-slate-200 pb-6">
-              <h2 className="font-semibold text-slate-900 mb-3">Services</h2>
+            <div className="border-b border-white/10 pb-6">
+              <h2 className="font-semibold text-white mb-3">Services</h2>
               <div className="space-y-2">
                 {Array.isArray(quote.services) && (quote.services as any[]).map((service: any, i: number) => (
                   <div key={i} className="flex justify-between text-sm">
-                    <span className="text-slate-600">{String(service.description ?? "Service")}</span>
-                    <span className="font-medium text-slate-900">${Number(service.amount ?? 0).toFixed(2)}</span>
+                    <span className="text-white/60">{String(service.description ?? "Service")}</span>
+                    <span className="font-medium text-white">${Number(service.amount ?? 0).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
@@ -90,25 +90,25 @@ export default function QuoteDetailPage() {
             {/* Totals */}
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Subtotal</span>
-                <span className="font-medium text-slate-900">${quote.subtotal.toFixed(2)}</span>
+                <span className="text-white/50">Subtotal</span>
+                <span className="font-medium text-white">${quote.subtotal.toFixed(2)}</span>
               </div>
               {quote.taxRate > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Tax ({(quote.taxRate * 100).toFixed(1)}%)</span>
-                  <span className="font-medium text-slate-900">${quote.taxAmount.toFixed(2)}</span>
+                  <span className="text-white/50">Tax ({(quote.taxRate * 100).toFixed(1)}%)</span>
+                  <span className="font-medium text-white">${quote.taxAmount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-lg font-bold border-t border-slate-200 pt-2">
+              <div className="flex justify-between text-lg font-bold border-t border-white/10 pt-2">
                 <span>Total</span>
-                <span className="text-green-700">${quote.total.toFixed(2)}</span>
+                <span className="text-green-400">${quote.total.toFixed(2)}</span>
               </div>
             </div>
 
             {/* Status */}
-            <div className="bg-slate-50 rounded-lg p-4">
-              <p className="text-xs text-slate-500 mb-1">Status</p>
-              <p className="text-sm font-medium text-slate-900 capitalize">{quote.status}</p>
+            <div className="bg-white/5 rounded-lg p-4">
+              <p className="text-xs text-white/50 mb-1">Status</p>
+              <p className="text-sm font-medium text-white capitalize">{quote.status}</p>
             </div>
 
             {/* Actions */}
