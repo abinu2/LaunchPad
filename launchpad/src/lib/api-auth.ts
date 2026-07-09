@@ -1,9 +1,10 @@
 import { auth0 } from "@/lib/auth0";
 import { prisma } from "@/lib/prisma";
 
-// Dev-only escape hatch: skip Auth0 entirely and act as a fixed local user.
-// Must match DEV_USER.sub in src/context/AuthContext.tsx.
-const BYPASS_AUTH = process.env.NEXT_PUBLIC_BYPASS_AUTH === "true";
+// Demo mode: skip Auth0 entirely and act as a fixed local user. On by default
+// (including in production) — see proxy.ts for why. Must match DEV_USER.sub
+// in src/context/AuthContext.tsx.
+const BYPASS_AUTH = process.env.NEXT_PUBLIC_BYPASS_AUTH !== "false";
 export const DEV_USER_SUB = "dev-user";
 
 export async function requireSessionUser() {

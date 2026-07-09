@@ -18,9 +18,10 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// Dev-only escape hatch: skip Auth0 entirely and act as a fixed local user.
-// Must match DEV_USER_SUB in src/lib/api-auth.ts.
-const BYPASS_AUTH = process.env.NEXT_PUBLIC_BYPASS_AUTH === "true";
+// Demo mode: skip Auth0 entirely and act as a fixed local user. On by default
+// (including in production) — see proxy.ts for why. Must match DEV_USER_SUB
+// in src/lib/api-auth.ts.
+const BYPASS_AUTH = process.env.NEXT_PUBLIC_BYPASS_AUTH !== "false";
 const DEV_USER: AppUser = { sub: "dev-user", email: "dev@localhost", name: "Dev User" };
 
 // Never calls useUser(), so it never hits /auth/profile — avoids the 404
