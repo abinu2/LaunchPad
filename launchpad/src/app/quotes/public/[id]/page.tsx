@@ -38,7 +38,7 @@ export default function PublicQuotePage() {
 
   if (error || !quote) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#0a0a0b] flex items-center justify-center p-4">
         <div className="text-center">
           <p className="text-white/60 mb-4">{error || "Quote not found"}</p>
         </div>
@@ -47,7 +47,7 @@ export default function PublicQuotePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+    <div className="min-h-screen bg-[#0a0a0b] p-4">
       <div className="max-w-2xl mx-auto">
         <div className="glass-card p-8 shadow-lg">
           <div className="mb-8 text-center">

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Rocket, HelpCircle } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import type { OnboardingAnswers } from "@/types/onboarding";
 
 interface Props {
@@ -155,7 +157,7 @@ export function OnboardingChat({ onComplete, error }: Props) {
               <div key={`${step.id}-${idx}`} className="flex gap-3">
                 <div className="flex-1">
                   <p className="text-xs text-white/40 mb-1">{step.question}</p>
-                  <div className="inline-block bg-blue-50 text-blue-800 text-sm px-3 py-2 rounded-xl rounded-tl-sm">
+                  <div className="inline-block bg-blue-500/15 border border-blue-500/20 text-blue-200 text-sm px-3 py-2 rounded-xl rounded-tl-sm">
                     {answers[step.id]}
                   </div>
                 </div>
@@ -167,9 +169,7 @@ export function OnboardingChat({ onComplete, error }: Props) {
           <div className="glass-card rounded-2xl border border-white/10 shadow-sm p-6">
             <div className="flex items-start gap-3 mb-4">
               <div className="w-8 h-8 bg-[#00CF31] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
+                <Rocket className="w-4 h-4 text-black" strokeWidth={2} />
               </div>
               <div className="flex-1">
                 <p className="font-medium text-white">{currentStep.question}</p>
@@ -180,16 +180,14 @@ export function OnboardingChat({ onComplete, error }: Props) {
                   <button
                     type="button"
                     onClick={() => setShowHelp(!showHelp)}
-                    className="text-xs text-blue-500 hover:text-blue-400 mt-1.5 flex items-center gap-1"
+                    className="text-xs text-blue-400 hover:text-blue-300 mt-1.5 flex items-center gap-1"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <HelpCircle className="w-3.5 h-3.5" strokeWidth={2} />
                     {showHelp ? "Got it" : "What does this mean?"}
                   </button>
                 )}
                 {showHelp && currentStep.helpTip && (
-                  <div className="mt-2 p-2.5 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-400 leading-relaxed">
+                  <div className="mt-2 p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300 leading-relaxed">
                     {currentStep.helpTip}
                   </div>
                 )}
@@ -202,7 +200,7 @@ export function OnboardingChat({ onComplete, error }: Props) {
                   <button
                     key={opt.label}
                     onClick={() => handleAnswer(opt.label)}
-                    className="text-left px-4 py-3 rounded-xl border border-white/10 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                    className="text-left px-4 py-3 rounded-xl border border-white/10 bg-white/[0.02] hover:border-blue-400/60 hover:bg-blue-500/10 transition-colors"
                   >
                     <span className="text-sm text-white/70">{opt.label}</span>
                     {opt.hint && (
@@ -218,31 +216,32 @@ export function OnboardingChat({ onComplete, error }: Props) {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   placeholder={currentStep.placeholder}
-                  className="flex-1 h-10 px-3 rounded-lg border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40"
+                  className="flex-1 h-10 px-3 rounded-lg border border-white/15 bg-white/8 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#00CF31]/40"
                 />
-                <button
+                <Button
                   type="submit"
                   disabled={!inputValue.trim() && currentStep.id !== "businessName" && currentStep.id !== "helpDetails"}
-                  className="px-4 h-10 bg-[#00CF31] text-black font-semibold hover:bg-[#00b82c] disabled:opacity-40 transition-colors"
                 >
                   Next
-                </button>
+                </Button>
               </form>
             )}
 
             {/* Allow skipping optional text fields */}
             {!currentStep.options && (currentStep.id === "businessName" || currentStep.id === "helpDetails") && (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => handleAnswer("")}
-                className="mt-2 text-xs text-white/40 hover:text-white/60"
+                className="mt-2 text-white/40 hover:text-white/60 px-0 h-auto"
               >
                 Skip for now
-              </button>
+              </Button>
             )}
           </div>
 
           {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-500/20 rounded-lg text-sm text-red-400">
+            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
               {error} — please try again.
             </div>
           )}

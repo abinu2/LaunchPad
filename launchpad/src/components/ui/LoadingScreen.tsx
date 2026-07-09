@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Rocket, Sparkles } from "lucide-react";
 
 // ─── Animated orb background ─────────────────────────────────────────────────
 
@@ -29,9 +30,7 @@ function LogoMark() {
       <div className="absolute inset-0 rounded-2xl bg-green-500/20 animate-ping-slow" />
       <div className="absolute inset-1 rounded-xl bg-green-500/10 animate-pulse" />
       <div className="relative z-10 flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#00CF31] to-emerald-600 rounded-2xl shadow-lg shadow-green-500/30">
-        <svg className="w-9 h-9 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
+        <Rocket className="w-8 h-8 text-black" strokeWidth={2} />
       </div>
     </div>
   );
@@ -172,9 +171,7 @@ export function ContractScanLoader({ progress, stage }: { progress: number; stag
           {/* AI badge */}
           <div className="absolute top-1 right-1">
             <div className="w-4 h-4 bg-gradient-to-br from-[#00CF31] to-emerald-600 rounded-sm flex items-center justify-center">
-              <svg className="w-2.5 h-2.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+              <Sparkles className="w-2.5 h-2.5 text-black" strokeWidth={2.5} />
             </div>
           </div>
         </div>

@@ -66,11 +66,11 @@ export function OnboardingResults({ result, onSave }: Props) {
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
         {/* Urgent warnings */}
         {result.urgentWarnings.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <p className="text-sm font-semibold text-amber-800 mb-2">⚠️ Important heads-up</p>
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+            <p className="text-sm font-semibold text-amber-400 mb-2">⚠️ Important heads-up</p>
             <ul className="space-y-1">
               {result.urgentWarnings.map((w: string, i: number) => (
-                <li key={i} className="text-sm text-amber-700">• {w}</li>
+                <li key={i} className="text-sm text-amber-300/90">• {w}</li>
               ))}
             </ul>
           </div>
@@ -205,11 +205,11 @@ export function OnboardingResults({ result, onSave }: Props) {
 
         {/* Key insights */}
         {result.keyInsights.length > 0 && (
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-            <p className="text-sm font-semibold text-blue-800 mb-2">💡 Key insights for your business</p>
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+            <p className="text-sm font-semibold text-blue-300 mb-2">💡 Key insights for your business</p>
             <ul className="space-y-1.5">
               {result.keyInsights.map((insight: string, i: number) => (
-                <li key={i} className="text-sm text-blue-400">• {insight}</li>
+                <li key={i} className="text-sm text-blue-300/90">• {insight}</li>
               ))}
             </ul>
           </div>
@@ -218,7 +218,7 @@ export function OnboardingResults({ result, onSave }: Props) {
         {/* Bank connection — optional, non-coercive */}
         <div className="glass-card p-5">
           <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center flex-shrink-0">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
@@ -249,7 +249,9 @@ export function OnboardingResults({ result, onSave }: Props) {
                   >
                     Link bank account
                   </PlaidConnectButton>
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={async () => {
                       if (!savedBusinessId) return;
                       try {
@@ -263,35 +265,37 @@ export function OnboardingResults({ result, onSave }: Props) {
                       // Always navigate to dashboard whether skip succeeds or not
                       router.replace("/dashboard");
                     }}
-                    className="text-xs text-white/50 underline"
                   >
                     Skip for now
-                  </button>
+                  </Button>
                   <span className="text-xs text-white/40">Optional — you can do this later from your dashboard</span>
                 </div>
               ) : (
-                <div className="mt-2 text-xs text-white/40">
-                  <div>You can connect your bank from the dashboard after saving your plan.</div>
-                  <div className="mt-2 flex gap-2">
-                    <Button onClick={() => handleSave(true)} loading={saving} className="py-2 px-3 text-sm">Save and go to dashboard</Button>
-                    <Button onClick={() => handleSave(false)} loading={saving} className="py-2 px-3 text-sm">Save & connect bank</Button>
-                  </div>
-                </div>
+                <p className="mt-2 text-xs text-white/40">
+                  You can connect your bank now, or skip it and do this later from your dashboard.
+                </p>
               )}
               {bankSkipped && <p className="text-xs text-white/40 mt-2">You skipped bank connection — you can link it anytime from dashboard.</p>}
             </div>
           </div>
         </div>
 
-        {/* CTA */}
-        <div className="pt-2 pb-8">
-          <Button onClick={() => handleSave(true)} loading={saving} className="w-full py-3 text-base">
-            Save my plan and go to dashboard
-          </Button>
-          <p className="text-center text-xs text-white/40 mt-3">
+        {/* CTA — single, unambiguous next step */}
+        {!savedBusinessId && (
+          <div className="pt-2 pb-8 flex flex-col sm:flex-row gap-2">
+            <Button onClick={() => handleSave(false)} loading={saving} size="lg" className="flex-1">
+              Save &amp; connect bank
+            </Button>
+            <Button onClick={() => handleSave(true)} loading={saving} variant="secondary" size="lg" className="flex-1">
+              Skip &amp; go to dashboard
+            </Button>
+          </div>
+        )}
+        {!savedBusinessId && (
+          <p className="text-center text-xs text-white/40 -mt-6 pb-8">
             Your plan is saved and updated as your business grows.
           </p>
-        </div>
+        )}
       </div>
     </div>
   );

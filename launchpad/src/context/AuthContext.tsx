@@ -23,12 +23,24 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const BYPASS_AUTH = process.env.NEXT_PUBLIC_BYPASS_AUTH === "true";
 const DEV_USER: AppUser = { sub: "dev-user", email: "dev@localhost", name: "Dev User" };
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+// Never calls useUser(), so it never hits /auth/profile — avoids the 404
+// that shows up once the middleware stops handling Auth0 routes under bypass.
+function BypassAuthProvider({ children }: { children: ReactNode }) {
+  return (
+    <AuthContext.Provider value={{
+      user: DEV_USER,
+      loading: false,
+      signOut: () => { window.location.href = "/auth/logout"; },
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+function RealAuthProvider({ children }: { children: ReactNode }) {
   const { user: auth0User, isLoading } = useUser();
 
-  const user: AppUser | null = BYPASS_AUTH
-    ? DEV_USER
-    : auth0User
+  const user: AppUser | null = auth0User
     ? {
         sub: auth0User.sub as string,
         email: auth0User.email as string,
@@ -40,12 +52,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user,
-      loading: BYPASS_AUTH ? false : isLoading,
+      loading: isLoading,
       signOut: () => { window.location.href = "/auth/logout"; },
     }}>
       {children}
     </AuthContext.Provider>
   );
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  return BYPASS_AUTH
+    ? <BypassAuthProvider>{children}</BypassAuthProvider>
+    : <RealAuthProvider>{children}</RealAuthProvider>;
 }
 
 export function useAuth() {

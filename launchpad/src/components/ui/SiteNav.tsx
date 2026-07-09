@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Rocket } from "lucide-react";
 import { useBusiness } from "@/context/BusinessContext";
 
 /**
@@ -16,9 +17,7 @@ export function SiteNav() {
         {/* Logo → home */}
         <Link href="/dashboard" className="flex items-center gap-2.5 group">
           <div className="w-7 h-7 bg-[#00CF31] rounded-lg flex items-center justify-center group-hover:bg-[#00b82c] transition-colors">
-            <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+            <Rocket className="w-4 h-4 text-black" strokeWidth={2} />
           </div>
           <span className="font-semibold text-white text-sm truncate max-w-[200px]">
             {business?.businessName ?? "Launchpad"}
